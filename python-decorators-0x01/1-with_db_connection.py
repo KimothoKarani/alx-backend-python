@@ -47,6 +47,7 @@ def get_user_by_id(conn, user_id):
     cursor.execute("SELECT * FROM User WHERE user_id = %s", (user_id,))
     return cursor.fetchone()
 
+
 #### Fetch user by ID with automatic connection handling
 
 # import uuid
