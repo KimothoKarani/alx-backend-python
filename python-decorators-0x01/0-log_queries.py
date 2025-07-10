@@ -4,6 +4,7 @@ import os
 from pprint import pprint
 
 import mysql.connector
+from datetime import datetime
 
 
 def log_queries(func):
@@ -14,13 +15,14 @@ def log_queries(func):
         # We expect the query to be passed as a keyword argument, e.g., query="..."
         # The 'kwargs' dictionary holds all keyword arguments.
         sql_query = kwargs.get('query')
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
         # Now, we log it!
         if sql_query:
-            print(f"Executing query: {sql_query}")
+            print(f"[{timestamp}] Executing query: {sql_query}")
             #You could also write to a log file here
             with open("query.log", "a") as f:
-                f.write(f"{sql_query}\n")
+                f.write(f"[{timestamp}]: {sql_query}\n")
         else:
             # Good practice to handle cases where the query might be missing
             # or passed as a positional argument.
@@ -62,7 +64,7 @@ if __name__ == "__main__":
 
     print("-" * 20)
     print("Users fetched:")
-    for user in users:
-        pprint(user)
+    # for user in users:
+    #     pprint(user)
 
 
