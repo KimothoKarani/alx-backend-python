@@ -34,6 +34,7 @@ class DatabaseConnection:
             print(f"Error connecting to MySQL database: {e}")
             raise
 
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         """
         The "teardown" bookend. Ensures the MySQL connection is closed.
