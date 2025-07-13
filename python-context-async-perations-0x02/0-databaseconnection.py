@@ -58,7 +58,7 @@ if __name__ == "__main__":
             cursor = conn.cursor()
 
             # Perform the query
-            cursor.execute("SELECT * FROM User")
+            cursor.execute("SELECT * FROM users")
             users = cursor.fetchall()
 
             print("\nQuery Results:")
