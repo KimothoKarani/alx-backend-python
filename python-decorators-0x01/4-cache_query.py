@@ -1,5 +1,7 @@
 import functools
 import os
+from pprint import pprint
+
 import mysql.connector
 
 #create a decorator that caches the results of a database queries inorder to avoid redundant calls
@@ -72,5 +74,6 @@ users = fetch_users_with_cache(query="SELECT * FROM User")
 
 # Second call will use the cached result
 users_again = fetch_users_with_cache(query="SELECT * FROM User")
+
 
 
