@@ -69,8 +69,8 @@ class TestGetJson(unittest.TestCase):
             mock_requests_get: Mock
     ) -> None:
         """
-        Tests that `utils.get_json` returns the expected dictionary from a
-        mocked HTTP call.
+        Tests that `get_json` returns the expected output from a mocked
+        HTTP call.
         """
         # Configure the mock to return a specific payload
         mock_response = Mock()
