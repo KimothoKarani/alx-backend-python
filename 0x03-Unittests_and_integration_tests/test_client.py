@@ -4,9 +4,10 @@ A module for testing the `client.GithubOrgClient` class.
 """
 import unittest
 from unittest.mock import patch, PropertyMock, MagicMock
-from parameterized import parameterized
+from parameterized import parameterized, parameterized_class
 from client import GithubOrgClient
-from typing import Dict
+from fixtures import TEST_PAYLOAD
+from typing import Dict, List
 
 
 class TestGithubOrgClient(unittest.TestCase):
@@ -76,7 +77,8 @@ class TestGithubOrgClient(unittest.TestCase):
         ({"license": {"key": "my_license"}}, "my_license", True),
         ({"license": {"key": "other_license"}}, "my_license", False),
     ])
-    def test_has_license(self,
+    def test_has_license(
+            self,
             repo: Dict,
             license_key: str,
             expected: bool
@@ -86,6 +88,60 @@ class TestGithubOrgClient(unittest.TestCase):
         """
         result = GithubOrgClient.has_license(repo, license_key)
         self.assertEqual(result, expected)
+
+
+@parameterized_class(('org_payload', 'repos_payload', 'expected_repos', 'apache2_repos'), TEST_PAYLOAD)
+class TestIntegrationGithubOrgClient(unittest.TestCase):
+    """
+    Integration test for the `GithubOrgClient` class.
+    This class uses fixtures to test the `public_repos` method, mocking
+    only the external `requests.get` calls.
+    """
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        """
+        Set up the class by patching `requests.get` to return example payloads
+        from fixtures based on the requested URL.
+        """
+
+        # Define a side effect function for the mock to return different
+        # payloads for different URLs.
+        def side_effect(url):
+            mock_response = MagicMock()
+            if url == cls.org_payload["repos_url"]:
+                mock_response.json.return_value = cls.repos_payload
+            else:
+                mock_response.json.return_value = cls.org_payload
+            return mock_response
+
+        cls.get_patcher = patch('client.requests.get')
+        mock_get = cls.get_patcher.start()
+        mock_get.side_effect = side_effect
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        """
+        Tear down the class by stopping the patcher.
+        """
+        cls.get_patcher.stop()
+
+    def test_public_repos(self) -> None:
+        """
+        Test the `public_repos` method without any license filter.
+        """
+        client = GithubOrgClient("google")
+        self.assertEqual(client.public_repos(), self.expected_repos)
+
+    def test_public_repos_with_license(self) -> None:
+        """
+        Test the `public_repos` method with a license filter.
+        """
+        client = GithubOrgClient("google")
+        self.assertEqual(
+            client.public_repos(license="apache-2.0"),
+            self.apache2_repos
+        )
 
 
 if __name__ == '__main__':
