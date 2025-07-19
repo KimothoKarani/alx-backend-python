@@ -33,7 +33,9 @@ class TestGithubOrgClient(unittest.TestCase):
         Tests that `_public_repos_url` property returns the correct URL based
         on the mocked `org` property.
         """
-        known_payload = {"repos_url":"https://api.github.com/orgs/google/repos"}
+        known_payload = {
+            "repos_url": "https://api.github.com/orgs/google/repos"
+        }
 
         with patch(
                 'client.GithubOrgClient.org',
@@ -52,33 +54,21 @@ class TestGithubOrgClient(unittest.TestCase):
         based on a mocked payload from `get_json` and a mocked
         `_public_repos_url` property.
         """
-        # Define the payload that get_json should return
-        repos_payload = [
-            {"name": "repo1"},
-            {"name": "repo2"},
-            {"name": "repo3"}
-        ]
+        repos_payload = [{"name": "repo1"}, {"name": "repo2"}]
         mock_get_json.return_value = repos_payload
 
-        # Mock the _public_repos_url property
         with patch(
                 'client.GithubOrgClient._public_repos_url',
                 new_callable=PropertyMock,
                 return_value="https://api.github.com/orgs/google/repos"
         ) as mock_public_repos_url:
             client = GithubOrgClient("google")
-
-            # Call the method under test
             public_repos = client.public_repos()
 
-            # Assert that the list of repos is what we expect
-            expected_repos = ["repo1", "repo2", "repo3"]
+            expected_repos = ["repo1", "repo2"]
             self.assertEqual(public_repos, expected_repos)
 
-            # Assert that the mocked property was called once
             mock_public_repos_url.assert_called_once()
-
-            # Assert that the mocked get_json was called once
             mock_get_json.assert_called_once()
 
 
