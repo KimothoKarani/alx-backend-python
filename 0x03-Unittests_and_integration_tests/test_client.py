@@ -104,17 +104,20 @@ class TestIntegrationGithubOrgClient(unittest.TestCase):
         from fixtures based on the requested URL.
         """
 
-        # Define a side effect function for the mock to return different
-        # payloads for different URLs.
         def side_effect(url):
+            """
+            A side effect function for the mock to return different payloads
+            for different URLs.
+            """
             mock_response = MagicMock()
-            if url == cls.org_payload["repos_url"]:
+            if url == cls.org_payload.get("repos_url"):
                 mock_response.json.return_value = cls.repos_payload
             else:
                 mock_response.json.return_value = cls.org_payload
             return mock_response
 
-        cls.get_patcher = patch('client.requests.get')
+        # Correctly patch `requests.get` in the `utils` module
+        cls.get_patcher = patch('utils.requests.get')
         mock_get = cls.get_patcher.start()
         mock_get.side_effect = side_effect
 
