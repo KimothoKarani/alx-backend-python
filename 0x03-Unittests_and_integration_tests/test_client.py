@@ -33,8 +33,7 @@ class TestGithubOrgClient(unittest.TestCase):
         Tests that `_public_repos_url` property returns the correct URL based
         on the mocked `org` property.
         """
-        known_payload = {"repos_url":
-                             "https://api.github.com/orgs/google/repos"}
+        known_payload = {"repos_url":"https://api.github.com/orgs/google/repos"}
 
         with patch(
                 'client.GithubOrgClient.org',
