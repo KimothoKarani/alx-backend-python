@@ -113,7 +113,11 @@ class TestMemoize(unittest.TestCase):
                 return self.a_method()
 
         # Use patch as a context manager to mock `a_method`
-        with patch.object(TestClass, 'a_method', return_value=42) as mock_a_method:
+        with patch.object(
+                TestClass,
+                'a_method',
+                return_value=42
+        ) as mock_a_method:
             # Create an instance of the test class
             instance = TestClass()
 
