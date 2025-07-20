@@ -1,6 +1,4 @@
-# messaging_app/chats/views.py
-
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, filters
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 
@@ -22,12 +20,14 @@ class ConversationViewSet(viewsets.ModelViewSet):
     """
     queryset = Conversation.objects.all().order_by('-created_at')
     serializer_class = ConversationSerializer
-    permission_classes = [IsAuthenticated] # Ensure only authenticated users can access
+    permission_classes = [IsAuthenticated]
 
-    # When creating a new conversation, the serializer's create method
-    # already handles setting up the many-to-many 'participants'.
-    # No custom perform_create needed here unless specific logic (e.g., current user as participant) is required.
-    # For now, it expects 'participant_ids' in the request body.
+    # ✅ Enable filtering and searching on participants' email
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['participants__email']
+    ordering_fields = ['created_at']
+    ordering = ['-created_at']  # Default ordering
+
 
 # --- 2. Message ViewSet ---
 class MessageViewSet(viewsets.ModelViewSet):
@@ -45,24 +45,25 @@ class MessageViewSet(viewsets.ModelViewSet):
     """
     queryset = Message.objects.all().order_by('sent_at')
     serializer_class = MessageSerializer
-    permission_classes = [IsAuthenticated] # Ensure only authenticated users can access
+    permission_classes = [IsAuthenticated]
 
-    # Override perform_create to automatically set the sender of the message
-    # to the currently authenticated user.
+    # ✅ Add filter support for message body, sender email, or conversation ID
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['message_body', 'sender__email', 'conversation__conversation_id']
+    ordering_fields = ['sent_at']
+    ordering = ['sent_at']  # Default message order
+
     def perform_create(self, serializer):
         """
         Sets the sender of the message to the authenticated user before saving.
         The conversation is expected to be provided in the request data (conversation_id).
         """
-        # serializer.save() will call the create method in MessageSerializer.
-        # We pass the 'sender' object directly, which will be used by 'source='sender'' in the serializer.
         serializer.save(sender=self.request.user)
 
-    # Optional: If you want to filter messages by conversation, you might modify get_queryset.
-    # For instance, if the URL was /conversations/{conversation_id}/messages/
+    # Optional nested routing logic
     # def get_queryset(self):
     #     queryset = super().get_queryset()
-    #     conversation_id = self.kwargs.get('conversation_pk') # Assuming nested router provides 'conversation_pk'
+    #     conversation_id = self.kwargs.get('conversation_pk')
     #     if conversation_id:
     #         queryset = queryset.filter(conversation__conversation_id=conversation_id)
     #     return queryset
