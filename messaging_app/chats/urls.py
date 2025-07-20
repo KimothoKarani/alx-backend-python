@@ -1,11 +1,11 @@
 # messaging_app/chats/urls.py
 
 from django.urls import path, include
-from rest_framework.routers import DefaultRouter
+from rest_framework import routers
 from .views import ConversationViewSet, MessageViewSet
 
 # Create a router instance
-router = DefaultRouter()
+router = routers.DefaultRouter()
 
 # Register the viewsets with the router
 # This will automatically generate URLs for list, create, retrieve, update, delete
