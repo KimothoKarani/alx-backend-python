@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+from decouple import config
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,7 +21,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-35h8s4++c0eghk+u-g-a@qib8-!*f+_ad+yj3yicv5#m6=f)9h'
+SECRET_KEY = config('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -37,8 +38,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'rest_framework'
-    'chats'
+    'rest_framework',
+    'chats',
 ]
 
 MIDDLEWARE = [
@@ -135,3 +136,6 @@ REST_FRAMEWORK = {
         # like TokenAuthentication or JWTAuthentication.
     ]
 }
+
+
+AUTH_USER_MODEL = 'chats.User'
