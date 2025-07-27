@@ -167,3 +167,87 @@ class OffensiveLanguageMiddleware:  # Renamed as per task, but implements rate l
         else:
             ip = request.META.get('REMOTE_ADDR')
         return ip
+
+
+# --- NEW MIDDLEWARE: RolePermissionMiddleware ---
+class RolePermissionMiddleware:
+    """
+    Middleware to restrict access to specific API actions based on the user's role.
+    Only 'admin' users are allowed to access the specified paths.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+        # Define paths that require 'admin' role
+        # Example: if only admins can access '/api/admin/users/' or specific Conversation management
+        self.restricted_paths_for_admin = [
+            '/api/admin/',  # If you had an admin-specific API endpoint
+            # '/api/conversations/', # Uncomment if only admins can list ALL conversations (GET) or create/delete ANY conversation (POST/DELETE)
+            # '/api/messages/', # Uncomment if only admins can list ALL messages
+        ]
+        # Or you could specify methods for paths:
+        # self.restricted_actions_by_role = {
+        #     'admin': {
+        #         ('DELETE', '/api/conversations/'): True, # Only admin can DELETE any conversation
+        #         ('PUT', '/api/users/'): True, # Only admin can PUT/PATCH users
+        #     }
+        # }
+        logger.info("RolePermissionMiddleware initialized.")
+
+    def __call__(self, request):
+        # Allow non-API paths, static files, and authentication endpoints to pass always.
+        if not request.path.startswith('/api/') or \
+                request.path.startswith('/api/token/') or \
+                request.path.startswith('/admin/') or \
+                request.path.startswith('/static/') or \
+                request.path.startswith('/api-auth/'):
+            return self.get_response(request)
+
+        # Check if user is authenticated (crucial, as 'request.user' might be AnonymousUser otherwise)
+        # This middleware should run AFTER AuthenticationMiddleware
+        if not request.user.is_authenticated:
+            # If the path is protected for specific roles, but user is not authenticated,
+            # this middleware returns 403. DRF's IsAuthenticated would also catch this,
+            # but this middleware enforces it earlier for role-specific paths.
+            # However, for role checks, we need them to be AUTHENTICATED.
+            # If default permission is IsAuthenticated, this check is redundant but safe.
+            # For this task, we want to check role if it's a restricted path.
+            # If user is not authenticated AND path is restricted, deny.
+
+            # Simple check: If user hits any defined restricted path and isn't admin
+            for path_prefix in self.restricted_paths_for_admin:
+                if request.path.startswith(path_prefix):
+                    if request.user.is_authenticated and request.user.role == 'admin':
+                        return self.get_response(request)  # Admin user allowed
+                    else:
+                        logger.warning(
+                            f"Access denied: User {request.user} (Role: {getattr(request.user, 'role', 'N/A')}) tried to access restricted path {request.path}.")
+                        return HttpResponseForbidden(
+                            "Access Denied: You do not have the required role to access this resource.")
+
+            # If the path is not explicitly restricted for admins OR if user is authenticated and not admin
+            # let it pass to DRF's permissions. DRF permissions are more granular.
+            # This middleware is for broad, early role-based blocks.
+
+            # For task: if user is NOT admin/moderator, return 403 for specific actions.
+            # Let's say we want to restrict all DELETE requests or all POST to conversations
+            # unless the user is an admin.
+
+            # Example: Restrict all DELETE requests to /api/conversations/ to admins only
+            # This is a strong, broad restriction.
+            if request.method == 'DELETE' and request.path.startswith('/api/conversations/'):
+                if not request.user.is_authenticated or request.user.role != 'admin':
+                    logger.warning(
+                        f"Access denied: Non-admin user {request.user} tried to DELETE conversation at {request.path}.")
+                    return HttpResponseForbidden("Access Denied: Only administrators can delete conversations.")
+
+            # Example: Restrict all POST requests to /api/conversations/ (conversation creation) to admins only
+            # if request.method == 'POST' and request.path == '/api/conversations/':
+            #     if not request.user.is_authenticated or request.user.role != 'admin':
+            #         logger.warning(f"Access denied: Non-admin user {request.user} tried to create conversation at {request.path}.")
+            #         return HttpResponseForbidden("Access Denied: Only administrators can create conversations.")
+
+        # If no explicit role-based restriction is triggered by this middleware,
+        # pass the request to the next in chain (which will be DRF's permissions).
+        response = self.get_response(request)
+        return response

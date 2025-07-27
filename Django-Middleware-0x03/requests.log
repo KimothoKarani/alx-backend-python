@@ -74,3 +74,48 @@ IP 127.0.0.1 sent message. Count: 4 in 60s.
 IP 127.0.0.1 sent message. Count: 5 in 60s.
 2025-07-27 19:47:43.842022 - User: AnonymousUser - Path: /api/conversations/669c6daf-fb5c-443f-a257-184a09dec19f/messages/
 Rate limit exceeded for IP: 127.0.0.1. Path: /api/conversations/669c6daf-fb5c-443f-a257-184a09dec19f/messages/
+2025-07-27 20:45:54.399689 - User: AnonymousUser - Path: /api/conversations/669c6daf-fb5c-443f-a257-184a09dec19f/messages/
+IP 127.0.0.1 sent message. Count: 1 in 60s.
+2025-07-27 20:45:54.999316 - User: AnonymousUser - Path: /api/conversations/669c6daf-fb5c-443f-a257-184a09dec19f/messages/
+IP 127.0.0.1 sent message. Count: 2 in 60s.
+2025-07-27 20:45:56.451647 - User: AnonymousUser - Path: /api/conversations/669c6daf-fb5c-443f-a257-184a09dec19f/messages/
+IP 127.0.0.1 sent message. Count: 3 in 60s.
+2025-07-27 20:46:03.193597 - User: AnonymousUser - Path: /api/token/
+2025-07-27 20:46:08.170851 - User: AnonymousUser - Path: /api/conversations/669c6daf-fb5c-443f-a257-184a09dec19f/messages/
+IP 127.0.0.1 sent message. Count: 4 in 60s.
+2025-07-27 20:46:10.819075 - User: AnonymousUser - Path: /api/conversations/669c6daf-fb5c-443f-a257-184a09dec19f/messages/
+IP 127.0.0.1 sent message. Count: 5 in 60s.
+2025-07-27 20:46:12.086546 - User: AnonymousUser - Path: /api/conversations/669c6daf-fb5c-443f-a257-184a09dec19f/messages/
+Rate limit exceeded for IP: 127.0.0.1. Path: /api/conversations/669c6daf-fb5c-443f-a257-184a09dec19f/messages/
+2025-07-27 20:46:13.121164 - User: AnonymousUser - Path: /api/conversations/669c6daf-fb5c-443f-a257-184a09dec19f/messages/
+Rate limit exceeded for IP: 127.0.0.1. Path: /api/conversations/669c6daf-fb5c-443f-a257-184a09dec19f/messages/
+2025-07-27 20:47:47.664116 - User: AnonymousUser - Path: /api/conversations/
+2025-07-27 20:47:52.528985 - User: AnonymousUser - Path: /api/conversations/b0e63254-0089-4a84-a56a-d70faa0ef389/messages/
+IP 127.0.0.1 sent message. Count: 1 in 60s.
+OffensiveLanguageMiddleware (Rate Limiter) initialized. Limit: 5 messages per 60 seconds.
+RestrictAccessByTimeMiddleware initialized. Access allowed between 16:00 and 22:00.
+RequestLoggingMiddleware initialized.
+RolePermissionMiddleware initialized.
+OffensiveLanguageMiddleware (Rate Limiter) initialized. Limit: 5 messages per 60 seconds.
+RestrictAccessByTimeMiddleware initialized. Access allowed between 16:00 and 22:00.
+RequestLoggingMiddleware initialized.
+2025-07-27 20:51:30.437022 - User: john.doe@example.com - Path: /admin/
+2025-07-27 20:51:30.465230 - User: john.doe@example.com - Path: /admin/login/
+2025-07-27 20:51:39.766040 - User: john.doe@example.com - Path: /admin/login/
+2025-07-27 20:51:41.849537 - User: kimothokarani@gmail.com - Path: /admin/
+2025-07-27 20:51:46.518883 - User: kimothokarani@gmail.com - Path: /admin/login/
+2025-07-27 20:51:46.531179 - User: kimothokarani@gmail.com - Path: /admin/
+2025-07-27 20:51:48.971084 - User: kimothokarani@gmail.com - Path: /admin/logout/
+2025-07-27 20:51:50.775078 - User: AnonymousUser - Path: /admin/
+2025-07-27 20:51:50.787956 - User: AnonymousUser - Path: /admin/login/
+2025-07-27 20:51:53.131063 - User: AnonymousUser - Path: /admin/login/
+2025-07-27 20:52:10.681178 - User: AnonymousUser - Path: /admin/login/
+2025-07-27 20:52:14.680776 - User: AnonymousUser - Path: /admin/login/
+2025-07-27 20:52:15.337035 - User: kimothokarani@gmail.com - Path: /admin/
+2025-07-27 20:52:17.877668 - User: kimothokarani@gmail.com - Path: /admin/chats/user/
+2025-07-27 20:52:17.994845 - User: kimothokarani@gmail.com - Path: /admin/jsi18n/
+2025-07-27 20:52:57.584924 - User: kimothokarani@gmail.com - Path: /admin/chats/user/
+2025-07-27 20:52:57.651944 - User: kimothokarani@gmail.com - Path: /admin/jsi18n/
+2025-07-27 20:53:00.305214 - User: kimothokarani@gmail.com - Path: /admin/chats/user/add/
+2025-07-27 20:53:00.447632 - User: kimothokarani@gmail.com - Path: /admin/jsi18n/
+2025-07-27 20:53:09.231431 - User: kimothokarani@gmail.com - Path: /admin/chats/user/
