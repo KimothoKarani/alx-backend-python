@@ -9,7 +9,7 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
-
+from datetime import timedelta
 from pathlib import Path
 from decouple import config
 
@@ -40,10 +40,24 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'chats',
+    'rest_framework_simplejwt',
+    'corsheaders',  # If your frontend is on a different domain/port
+
 ]
+
+# Configure CORS Headers (CRITICAL if your frontend is separate)
+# For development, you might allow all origins:
+CORS_ALLOW_ALL_ORIGINS = True
+# For production, be specific:
+# CORS_ALLOWED_ORIGINS = [
+#     "https://yourfrontenddomain.com",
+#     "http://localhost:3000", # Example for a React dev server
+# ]
+# You must also add 'corsheaders.middleware.CorsMiddleware' to MIDDLEWARE list, high up!
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',  # Add this here, very early!
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -82,6 +96,11 @@ DATABASES = {
     }
 }
 
+# Add this section
+AUTHENTICATION_BACKENDS = [
+    'chats.auth.EmailBackend', # Your custom backend
+    'django.contrib.auth.backends.ModelBackend', # Keep Django's default model backend as a fallback
+]
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -125,17 +144,61 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 REST_FRAMEWORK = {
-    # Use Django's standard `django.conitrib.auth` permssions,
+    # Use Django's standard `django.contrib.auth` permissions,
     # or allow read-only access for unauthenticated users.
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
     'DEFAULT_AUTHENTICATION_CLASSES': [
+        # JWT authentication is generally preferred for APIs
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        # Session authentication is useful for browser-based API access
+        # (e.g., if you also use DRF's browsable API)
         'rest_framework.authentication.SessionAuthentication',
-        # You might also add other authentication methods here later,
-        # like TokenAuthentication or JWTAuthentication.
-    ]
+    ],
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer',  # Essential for development - makes API browsable in browser
+    ],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 10,  # Or whatever default page size you prefer
 }
+
+# Simple JWT Specific Settings
+SIMPLE_JWT = {
+    # How long the access token is valid (e.g., 5 minutes)
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5),
+    # How long the refresh token is valid (e.g., 1 day)
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    # Other settings (you can leave defaults for initial setup)
+    'ROTATE_REFRESH_TOKENS': False,
+    'BLACKLIST_AFTER_ROTATION': False,
+    'UPDATE_LAST_LOGIN': False,
+
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': SECRET_KEY, # Uses your project's SECRET_KEY for signing
+    'VERIFYING_KEY': None,
+    'AUDIENCE': None,
+    'ISSUER': None,
+    'JWK_URL': None,
+    'LEEWAY': 0,
+
+    'AUTH_HEADER_TYPES': ('Bearer',), # The standard is "Bearer" for JWT
+    'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
+    'USER_ID_FIELD': 'user_id',
+    'USER_ID_CLAIM': 'user_id', # This is how simplejwt puts user id in the token payload
+
+    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
+    'TOKEN_TYPE_CLAIM': 'token_type',
+    'TOKEN_USER_CLASS': 'rest_framework_simplejwt.models.TokenUser',
+
+    'JTI_CLAIM': 'jti',
+
+    'SLIDING_TOKEN_REFRESH_EXP_CLAIM': 'refresh_exp',
+    'SLIDING_TOKEN_LIFETIME': timedelta(minutes=60), # If using sliding tokens
+    'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=7), # If using sliding tokens
+}
+
 
 
 AUTH_USER_MODEL = 'chats.User'

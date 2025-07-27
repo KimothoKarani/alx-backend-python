@@ -16,10 +16,21 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView, # Used to get access and refresh tokens
+    TokenRefreshView,    # Used to refresh access tokens using refresh token
+    TokenVerifyView,     # Optional: Used to verify an access token's validity
+)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('chats.urls')), # Include your app's API URLs here
+
     # You might want to add DRF's login/logout URLs for browsable API
     path('api-auth/', include('rest_framework.urls', namespace='rest_framework')),
+
+    # API Authentication Endpoints (for JWT)
+    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('api/token/verify/', TokenVerifyView.as_view(), name='token_verify'),
 ]
