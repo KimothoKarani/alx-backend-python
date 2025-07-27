@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'chats',
     'rest_framework_simplejwt',
     'corsheaders',  # If your frontend is on a different domain/port
+    'django_filters',  # <-- ADD THIS LINE
 
 ]
 
@@ -162,7 +163,11 @@ REST_FRAMEWORK = {
         'rest_framework.renderers.BrowsableAPIRenderer',  # Essential for development - makes API browsable in browser
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 10,  # Or whatever default page size you prefer
+    'PAGE_SIZE': 20, # Or whatever default page size you prefer
+
+    'DEFAULT_FILTER_BACKENDS': [
+        'django_filters.rest_framework.DjangoFilterBackend',  # <-- ADD THIS for global filtering support
+    ],
 }
 
 # Simple JWT Specific Settings

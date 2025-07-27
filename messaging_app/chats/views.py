@@ -1,21 +1,21 @@
 # messaging_app/chats/views.py
-
-from rest_framework import viewsets, filters
+import django_filters
+from rest_framework import viewsets, filters # Import filters
 from rest_framework.response import Response
-# Import status for HTTP_403_FORBIDDEN
-from rest_framework import status # Add this if not already imported
-from rest_framework.permissions import IsAuthenticated # Keep this if still default in settings.py
 from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework import status # Import status for HTTP_403_FORBIDDEN
 
 from .models import User, Conversation, Message
 from .serializers import UserSerializer, ConversationSerializer, MessageSerializer
-# Import your custom permissions
-from .permissions import IsParticipantOfConversation, IsMessageSenderOrConversationParticipant, IsAuthenticatedCustom # <-- Import new permission
+from .permissions import IsParticipantOfConversation, IsMessageSenderOrConversationParticipant, IsAuthenticatedCustom # Keep all imports
+from .pagination import StandardPagination # <-- Import your custom pagination class
+from .filters import MessageFilter # <-- Import your custom filter class
 
 # --- Conversation ViewSet ---
 class ConversationViewSet(viewsets.ModelViewSet):
-    # ... (existing queryset, serializer_class) ...
-    # Use the custom IsAuthenticatedCustom here
+    # ... (existing code for ConversationViewSet) ...
+    queryset = Conversation.objects.all().order_by('-updated_at')
+    serializer_class = ConversationSerializer
     permission_classes = [IsAuthenticatedCustom, IsParticipantOfConversation]
 
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
@@ -24,12 +24,8 @@ class ConversationViewSet(viewsets.ModelViewSet):
     ordering = ['-updated_at']
 
     def get_queryset(self):
-        # The base queryset is needed to apply the filter on it
         queryset = super().get_queryset()
-        # This explicitly uses Message.objects.filter (indirectly through Conversation model)
-        # Ensure the current user is a participant of the conversation for listing
         return queryset.filter(participants=self.request.user).distinct()
-
 
     def perform_create(self, serializer):
         participant_users = serializer.validated_data.get('participant_ids', [])
@@ -41,12 +37,16 @@ class ConversationViewSet(viewsets.ModelViewSet):
 
 # --- Message ViewSet ---
 class MessageViewSet(viewsets.ModelViewSet):
-    # ... (existing queryset, serializer_class) ...
-    # Use the custom IsAuthenticatedCustom here
+    # ... (existing code for MessageViewSet) ...
+    queryset = Message.objects.all().order_by('sent_at')
+    serializer_class = MessageSerializer
     permission_classes = [IsAuthenticatedCustom, IsMessageSenderOrConversationParticipant]
 
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ['message_body', 'sender__email']
+    # --- Pagination and Filtering Configuration ---
+    pagination_class = StandardPagination # <-- Apply custom pagination class
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter, django_filters.rest_framework.DjangoFilterBackend] # <-- Add DjangoFilterBackend
+    filterset_class = MessageFilter # <-- Apply your custom filter class
+    search_fields = ['message_body', 'sender__email'] # Search remains for message_body/sender email
     ordering_fields = ['sent_at']
     ordering = ['sent_at']
 
@@ -54,23 +54,21 @@ class MessageViewSet(viewsets.ModelViewSet):
         conversation_pk = self.kwargs.get('conversation_pk')
 
         if not conversation_pk:
-            # If not a nested route, use the base queryset.
-            # Permissions will handle access to specific messages.
-            # Explicitly return a filtered Message.objects.filter here to satisfy checker if needed
-            if self.action == 'retrieve' or self.action == 'update' or self.action == 'destroy':
-                 return Message.objects.all() # Or filter by self.request.user if applicable
-            return super().get_queryset() # For list on /messages/ (if that existed)
+            # If not a nested route, return base queryset and let filterset_class apply filters if any
+            # The permissions (IsMessageSenderOrConversationParticipant.has_object_permission)
+            # will handle security for retrieve/update/destroy actions on individual messages
+            # accessed directly.
+            return super().get_queryset()
+
 
         try:
-            # Explicitly use Message.objects.filter to make it visible to checker
-            # This ensures only messages from conversations user is part of are returned
             conversation_messages = Message.objects.filter(
                 conversation_id=conversation_pk,
-                conversation__participants=self.request.user # Further filter for security and checker
+                conversation__participants=self.request.user
             )
-            return conversation_messages.order_by('sent_at') # Add ordering if not already in base queryset
-        except Exception: # Catch broader exception for robustness, though PermissionDenied is more specific
-            # Explicitly raise PermissionDenied with HTTP_403_FORBIDDEN logic
+            # Make sure it's ordered for consistent pagination and filtering
+            return conversation_messages.order_by('sent_at')
+        except Exception:
             raise PermissionDenied("Conversation not found or you are not a participant. Status: " + str(status.HTTP_403_FORBIDDEN))
 
 
@@ -85,7 +83,6 @@ class MessageViewSet(viewsets.ModelViewSet):
                 participants=self.request.user
             )
         except Conversation.DoesNotExist:
-            # Explicitly raise PermissionDenied with HTTP_403_FORBIDDEN logic
             raise PermissionDenied("Conversation not found or you are not a participant. Status: " + str(status.HTTP_403_FORBIDDEN))
 
         serializer.save(sender=self.request.user, conversation=conversation)
