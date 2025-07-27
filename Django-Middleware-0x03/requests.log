@@ -1,0 +1,21 @@
+RequestLoggingMiddleware initialized.
+2025-07-27 19:19:19.089432 - User: kimothokarani@gmail.com - Path: /admin/
+2025-07-27 19:19:20.798923 - User: kimothokarani@gmail.com - Path: /admin/
+2025-07-27 19:19:21.911144 - User: kimothokarani@gmail.com - Path: /admin/
+2025-07-27 19:19:22.636458 - User: kimothokarani@gmail.com - Path: /admin/
+2025-07-27 19:19:23.348166 - User: kimothokarani@gmail.com - Path: /admin/
+2025-07-27 19:19:24.112002 - User: kimothokarani@gmail.com - Path: /admin/
+2025-07-27 19:19:34.518245 - User: AnonymousUser - Path: /api/token/
+2025-07-27 19:19:40.102276 - User: AnonymousUser - Path: /api/conversations/
+2025-07-27 19:20:05.599773 - User: AnonymousUser - Path: /api/conversations/27a1c60d-0fb2-45bc-b292-10f80385cdad/messages/
+2025-07-27 19:20:11.555304 - User: AnonymousUser - Path: /api/conversations/27a1c60d-0fb2-45bc-b292-10f80385cdad/messages/
+2025-07-27 19:20:34.300614 - User: kimothokarani@gmail.com - Path: /api/
+2025-07-27 19:20:37.540478 - User: kimothokarani@gmail.com - Path: /api/
+2025-07-27 19:20:55.622264 - User: kimothokarani@gmail.com - Path: /api-auth/logout/
+2025-07-27 19:20:55.655185 - User: AnonymousUser - Path: /api/
+2025-07-27 19:20:57.711754 - User: AnonymousUser - Path: /api-auth/login/
+2025-07-27 19:21:22.149788 - User: AnonymousUser - Path: /api-auth/login/
+2025-07-27 19:21:22.827858 - User: john.doe@example.com - Path: /api/
+2025-07-27 19:21:34.196816 - User: john.doe@example.com - Path: /api/
+2025-07-27 19:21:59.537540 - User: john.doe@example.com - Path: /api/conversations/
+2025-07-27 19:22:16.184182 - User: john.doe@example.com - Path: /api/conversations/

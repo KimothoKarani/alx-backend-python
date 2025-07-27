@@ -65,6 +65,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'chats.middleware.RequestLoggingMiddleware',  # <-- ADD THIS LINE HERE
 ]
 
 ROOT_URLCONF = 'messaging_app.urls'
@@ -206,5 +207,53 @@ SIMPLE_JWT = {
 }
 
 
-
 AUTH_USER_MODEL = 'chats.User'
+
+# Logging configuration (ADD THIS SECTION)
+LOGGING = {
+    'version': 1, # The version of the logging dict schema
+    'disable_existing_loggers': False, # Keep existing loggers (e.g., Django's default loggers)
+    'formatters': { # How log messages are formatted
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+        'request_log_formatter': { # Custom formatter for your request log
+            'format': '{message}', # We want only the message as it's already formatted in the middleware
+            'style': '{',
+        },
+    },
+    'handlers': { # Where log messages are sent
+        'console': { # To console (for general Django logs)
+            'level': 'INFO',
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple'
+        },
+        'request_file': { # To a specific file for request logs
+            'level': 'INFO', # Log INFO level messages and above
+            'class': 'logging.FileHandler',
+            'filename': BASE_DIR / 'requests.log', # <-- Log to requests.log in project root
+            'formatter': 'request_log_formatter', # Use your custom formatter
+        },
+    },
+    'loggers': { # Which loggers to use and what handlers they send to
+        'django': { # Django's built-in logger
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False, # Don't pass Django messages to root logger
+        },
+        'chats': { # Logger for your 'chats' app (where your middleware resides)
+            'handlers': ['console', 'request_file'], # Send to console and your file
+            'level': 'INFO', # Log INFO messages from your app
+            'propagate': False, # Don't pass 'chats' messages to root logger
+        },
+        '': { # The root logger (fallback for any logger not explicitly configured)
+            'handlers': ['console'],
+            'level': 'WARNING', # Only log WARNING messages and above by default
+        }
+    }
+}
