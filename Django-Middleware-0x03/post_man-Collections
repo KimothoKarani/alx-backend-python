@@ -1,0 +1,740 @@
+{
+	"info": {
+		"_postman_id": "a5c23044-a060-4d86-b376-339af542dc95",
+		"name": "Messaging App API Tests",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "33052743"
+	},
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Login (Get JWT Tokens)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const json = pm.response.json();",
+									"    pm.environment.set(\"ACCESS_TOKEN\", json.access);",
+									"    pm.environment.set(\"REFRESH_TOKEN\", json.refresh);",
+									"    console.log(\"Saved access token:\", json.access);",
+									"    pm.test(\"Login returned tokens\", () => {",
+									"        pm.expect(json.access).to.be.a(\"string\").and.not.be.empty;",
+									"        pm.expect(json.refresh).to.be.a(\"string\").and.not.be.empty;",
+									"    });",
+									"} else {",
+									"    pm.test(\"Login failed (expected 200)\", () => {",
+									"        pm.expect(pm.response.code).to.eql(200);",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"{{USER1_EMAIL}}\",\n    \"password\": \"{{USER1_PASSWORD}}\"\n}"
+						},
+						"url": {
+							"raw": "http://127.0.0.1:8000/api/token/",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"token",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Refresh Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const json = pm.response.json();",
+									"    pm.environment.set(\"ACCESS_TOKEN\", json.access);",
+									"    console.log(\"Refreshed access token:\", json.access);",
+									"    pm.test(\"Refresh returned new access token\", () => {",
+									"        pm.expect(json.access).to.be.a(\"string\").and.not.be.empty;",
+									"    });",
+									"} else {",
+									"    pm.test(\"Refresh failed (expected 200)\", () => {",
+									"        pm.expect(pm.response.code).to.eql(200);",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"refresh\": \"{{REFRESH_TOKEN}}\"\n}"
+						},
+						"url": {
+							"raw": "http://127.0.0.1:8000/api/token/refresh/",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"token",
+								"refresh",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Verify Token",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"token\": \"{{ACCESS_TOKEN}}\"\n}"
+						},
+						"url": {
+							"raw": "http://127.0.0.1:8000/api/token/verify/",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"token",
+								"verify",
+								""
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Conversations",
+			"item": [
+				{
+					"name": "Create Conversation (Authenticated)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const data = pm.response.json();",
+									"    pm.environment.set(\"CONVERSATION_ID\", data.conversation_id);",
+									"    console.log(\"Created Conversation ID:\", data.conversation_id);",
+									"    pm.test(\"Conversation created successfully\", () => {",
+									"        pm.expect(data.conversation_id).to.be.a(\"string\").and.not.be.empty;",
+									"        const myEmail = pm.environment.get(\"USER1_EMAIL\");",
+									"        const emails = data.participants.map(p => p.email);",
+									"        pm.expect(emails).to.include(myEmail);",
+									"    });",
+									"} else {",
+									"    pm.test(\"Expected 201 Created\", () => {",
+									"        pm.expect(pm.response.code).to.eql(201);",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Chat with {{USER1_USERNAME}}\",\n    \"participant_ids\": []\n}"
+						},
+						"url": {
+							"raw": "http://127.0.0.1:8000/api/conversations/",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"conversations",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get My Conversations (Authenticated)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "http://127.0.0.1:8000/api/conversations/",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"conversations",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Conversation Detail (Authenticated, Participant)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "http://127.0.0.1:8000/api/conversations/{{CONVERSATION_ID}}/",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"conversations",
+								"{{CONVERSATION_ID}}",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Conversation Detail (Unauthorized - Non-Participant)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN_USER2}}"
+							}
+						],
+						"url": {
+							"raw": "http://127.0.0.1:8000/api/conversations/{{CONVERSATION_ID}}/",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"conversations",
+								"{{CONVERSATION_ID}}",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Conversation (Authenticated, Participant)",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Updated Chat Name\"\n}"
+						},
+						"url": {
+							"raw": "http://127.0.0.1:8000/api/conversations/{{CONVERSATION_ID}}/",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"conversations",
+								"{{CONVERSATION_ID}}",
+								""
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Messages",
+			"item": [
+				{
+					"name": "Send Message (Authenticated, Participant)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const msg = pm.response.json();",
+									"    pm.environment.set(\"MESSAGE_ID\", msg.message_id);",
+									"    console.log(\"Created Message ID:\", msg.message_id);",
+									"    pm.test(\"Message sent successfully\", () => {",
+									"        pm.expect(msg.message_id).to.be.a(\"string\").and.not.be.empty;",
+									"        const myEmail = pm.environment.get(\"USER1_EMAIL\");",
+									"        pm.expect(msg.sender.email).to.eql(myEmail);",
+									"    });",
+									"} else {",
+									"    pm.test(\"Expected 201 Created\", () => {",
+									"        pm.expect(pm.response.code).to.eql(201);",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"message_body\": \"Hello from {{USER1_USERNAME}}!\",\n    \"conversation_id\": \"{{CONVERSATION_ID}}\" \n}"
+						},
+						"url": {
+							"raw": "http://127.0.0.1:8000/api/conversations/{{CONVERSATION_ID}}/messages/",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"conversations",
+								"{{CONVERSATION_ID}}",
+								"messages",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Messages in Conversation (Authenticated, Participant)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "http://127.0.0.1:8000/api/conversations/{{CONVERSATION_ID}}/messages/",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"conversations",
+								"{{CONVERSATION_ID}}",
+								"messages",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Messages in Conversation (Unauthorized - Non-Participant)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN_USER2}}"
+							}
+						],
+						"url": {
+							"raw": "http://127.0.0.1:8000/api/conversations/{{CONVERSATION_ID}}/messages/",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"conversations",
+								"{{CONVERSATION_ID}}",
+								"messages",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update My Message (Authenticated, Sender)",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"message_body\": \"Hello again from {{USER1_USERNAME}}, updated!\"\n}"
+						},
+						"url": {
+							"raw": "http://127.0.0.1:8000/api/messages/{{MESSAGE_ID}}/",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"messages",
+								"{{MESSAGE_ID}}",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete My Message (Authenticated, Sender)",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "http://127.0.0.1:8000/api/messages/{{MESSAGE_ID}}/",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"messages",
+								"{{MESSAGE_ID}}",
+								""
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Filtering & Pagination",
+			"item": [
+				{
+					"name": "Get Messages with Pagination (Page 2)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "http://127.0.0.1:8000/api/conversations/{{CONVERSATION_ID}}/messages/?page=2",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"conversations",
+								"{{CONVERSATION_ID}}",
+								"messages",
+								""
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "2"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Filter Messages by Sender Email",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "http://127.0.0.1:8000/api/conversations/{{CONVERSATION_ID}}/messages/?sender_email={{USER1_EMAIL}}",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"conversations",
+								"{{CONVERSATION_ID}}",
+								"messages",
+								""
+							],
+							"query": [
+								{
+									"key": "sender_email",
+									"value": "{{USER1_EMAIL}}"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Filter Messages by Date Range (Adjust Dates)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "http://127.0.0.1:8000/api/conversations/{{CONVERSATION_ID}}/messages/?start_date=2025-07-20&end_date=2025-07-30",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"conversations",
+								"{{CONVERSATION_ID}}",
+								"messages",
+								""
+							],
+							"query": [
+								{
+									"key": "start_date",
+									"value": "2025-07-20"
+								},
+								{
+									"key": "end_date",
+									"value": "2025-07-30"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "ACCESS_TOKEN",
+			"value": ""
+		},
+		{
+			"key": "REFRESH_TOKEN",
+			"value": ""
+		},
+		{
+			"key": "CONVERSATION_ID",
+			"value": ""
+		},
+		{
+			"key": "MESSAGE_ID",
+			"value": ""
+		},
+		{
+			"key": "USER1_EMAIL",
+			"value": "user1@example.com"
+		},
+		{
+			"key": "USER1_USERNAME",
+			"value": "user1"
+		},
+		{
+			"key": "USER2_EMAIL",
+			"value": "user2@example.com"
+		},
+		{
+			"key": "USER2_USERNAME",
+			"value": "user2"
+		},
+		{
+			"key": "ACCESS_TOKEN_USER2",
+			"value": ""
+		},
+		{
+			"key": "USER1_PASSWORD",
+			"value": "user1_password"
+		}
+	]
+}
