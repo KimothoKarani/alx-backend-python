@@ -173,7 +173,7 @@ REST_FRAMEWORK = {
 # Simple JWT Specific Settings
 SIMPLE_JWT = {
     # How long the access token is valid (e.g., 5 minutes)
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=50),
     # How long the refresh token is valid (e.g., 1 day)
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     # Other settings (you can leave defaults for initial setup)
