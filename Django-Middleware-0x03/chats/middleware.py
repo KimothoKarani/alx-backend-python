@@ -170,7 +170,7 @@ class OffensiveLanguageMiddleware:  # Renamed as per task, but implements rate l
 
 
 # --- NEW MIDDLEWARE: RolePermissionMiddleware ---
-class RolePermissionMiddleware:
+class RolepermissionMiddleware:
     """
     Middleware to restrict access to specific API actions based on the user's role.
     Only 'admin' users are allowed to access the specified paths.
