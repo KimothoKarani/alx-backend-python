@@ -147,7 +147,7 @@ REST_FRAMEWORK = {
     # Use Django's standard `django.contrib.auth` permissions,
     # or allow read-only access for unauthenticated users.
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',
+        'chats.permissions.IsAuthenticatedCustom', # <-- CHANGE THIS to your custom permission
     ],
     'DEFAULT_AUTHENTICATION_CLASSES': [
         # JWT authentication is generally preferred for APIs
