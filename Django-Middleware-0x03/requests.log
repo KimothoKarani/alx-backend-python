@@ -23,3 +23,54 @@ RequestLoggingMiddleware initialized.
 RequestLoggingMiddleware initialized.
 RestrictAccessByTimeMiddleware initialized. Access allowed between 18:00 and 21:00.
 RequestLoggingMiddleware initialized.
+RestrictAccessByTimeMiddleware initialized. Access allowed between 18:00 and 21:00.
+RequestLoggingMiddleware initialized.
+2025-07-27 19:30:23.213179 - User: AnonymousUser - Path: /api/conversations/
+Access denied to /api/conversations/ at 16:30:23. Outside allowed hours (18:00-21:00).
+2025-07-27 19:30:36.385809 - User: AnonymousUser - Path: /api/conversations/
+Access denied to /api/conversations/ at 16:30:36. Outside allowed hours (18:00-21:00).
+RestrictAccessByTimeMiddleware initialized. Access allowed between 18:00 and 21:00.
+RequestLoggingMiddleware initialized.
+RestrictAccessByTimeMiddleware initialized. Access allowed between 18:00 and 21:00.
+RequestLoggingMiddleware initialized.
+RestrictAccessByTimeMiddleware initialized. Access allowed between 21:00 and 22:00.
+RequestLoggingMiddleware initialized.
+2025-07-27 19:40:50.651886 - User: AnonymousUser - Path: /api/conversations/
+Access denied to /api/conversations/ at 16:40:50. Outside allowed hours (21:00-22:00).
+RestrictAccessByTimeMiddleware initialized. Access allowed between 21:00 and 22:00.
+RequestLoggingMiddleware initialized.
+2025-07-27 19:41:14.686826 - User: AnonymousUser - Path: /api/conversations/
+Access denied to /api/conversations/ at 16:41:14. Outside allowed hours (21:00-22:00).
+2025-07-27 19:42:07.833788 - User: AnonymousUser - Path: /api/token/
+2025-07-27 19:42:13.093028 - User: AnonymousUser - Path: /api/conversations/
+Access denied to /api/conversations/ at 16:42:13. Outside allowed hours (21:00-22:00).
+RestrictAccessByTimeMiddleware initialized. Access allowed between 21:00 and 22:00.
+RequestLoggingMiddleware initialized.
+2025-07-27 19:45:26.788150 - User: AnonymousUser - Path: /api/conversations/
+Access denied to /api/conversations/ at 19:45:26. Outside allowed hours (21:00-22:00).
+RestrictAccessByTimeMiddleware initialized. Access allowed between 16:00 and 22:00.
+RequestLoggingMiddleware initialized.
+2025-07-27 19:45:52.164565 - User: AnonymousUser - Path: /api/conversations/
+2025-07-27 19:46:04.046710 - User: AnonymousUser - Path: /api/conversations/fbe30cb6-d71a-4952-b4cc-e36b14954b1b/messages/
+2025-07-27 19:46:11.296654 - User: AnonymousUser - Path: /api/conversations/
+2025-07-27 19:46:17.977378 - User: AnonymousUser - Path: /api/conversations/669c6daf-fb5c-443f-a257-184a09dec19f/messages/
+2025-07-27 19:46:21.728283 - User: AnonymousUser - Path: /api/conversations/669c6daf-fb5c-443f-a257-184a09dec19f/messages/
+OffensiveLanguageMiddleware (Rate Limiter) initialized. Limit: 5 messages per 60 seconds.
+RestrictAccessByTimeMiddleware initialized. Access allowed between 16:00 and 22:00.
+RequestLoggingMiddleware initialized.
+OffensiveLanguageMiddleware (Rate Limiter) initialized. Limit: 5 messages per 60 seconds.
+RestrictAccessByTimeMiddleware initialized. Access allowed between 16:00 and 22:00.
+RequestLoggingMiddleware initialized.
+2025-07-27 19:47:31.160676 - User: AnonymousUser - Path: /api/conversations/669c6daf-fb5c-443f-a257-184a09dec19f/messages/
+2025-07-27 19:47:37.107129 - User: AnonymousUser - Path: /api/conversations/669c6daf-fb5c-443f-a257-184a09dec19f/messages/
+IP 127.0.0.1 sent message. Count: 1 in 60s.
+2025-07-27 19:47:38.584237 - User: AnonymousUser - Path: /api/conversations/669c6daf-fb5c-443f-a257-184a09dec19f/messages/
+IP 127.0.0.1 sent message. Count: 2 in 60s.
+2025-07-27 19:47:40.049156 - User: AnonymousUser - Path: /api/conversations/669c6daf-fb5c-443f-a257-184a09dec19f/messages/
+IP 127.0.0.1 sent message. Count: 3 in 60s.
+2025-07-27 19:47:41.410349 - User: AnonymousUser - Path: /api/conversations/669c6daf-fb5c-443f-a257-184a09dec19f/messages/
+IP 127.0.0.1 sent message. Count: 4 in 60s.
+2025-07-27 19:47:42.639076 - User: AnonymousUser - Path: /api/conversations/669c6daf-fb5c-443f-a257-184a09dec19f/messages/
+IP 127.0.0.1 sent message. Count: 5 in 60s.
+2025-07-27 19:47:43.842022 - User: AnonymousUser - Path: /api/conversations/669c6daf-fb5c-443f-a257-184a09dec19f/messages/
+Rate limit exceeded for IP: 127.0.0.1. Path: /api/conversations/669c6daf-fb5c-443f-a257-184a09dec19f/messages/

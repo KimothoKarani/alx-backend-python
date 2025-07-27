@@ -1,7 +1,9 @@
 # Django-Middleware-0x03/chats/middleware.py
 
 import logging  # Import the logging module
-from datetime import datetime  # Import datetime for timestamps
+from datetime import datetime, timedelta  # Import datetime for timestamps
+from zoneinfo import ZoneInfo
+
 from django.http import HttpResponseForbidden # Import HttpResponseForbidden
 from django.utils import timezone # Import timezone for timezone-aware datetimes
 
@@ -61,8 +63,8 @@ class RestrictAccessByTimeMiddleware:
 
     def __init__(self, get_response):
         self.get_response = get_response
-        self.start_hour = 18  # 6 PM
-        self.end_hour = 21  # 9 PM (exclusive)
+        self.start_hour = 16  # 6 PM
+        self.end_hour = 22  # 9 PM (exclusive)
         logger.info(
             f"RestrictAccessByTimeMiddleware initialized. Access allowed between {self.start_hour}:00 and {self.end_hour}:00.")
 
@@ -81,7 +83,7 @@ class RestrictAccessByTimeMiddleware:
 
         # Assume all other /api/ paths are subject to time restriction
         if request.path.startswith('/api/'):
-            now = timezone.now()  # Get current time, timezone-aware
+            now = timezone.now().astimezone(ZoneInfo('Africa/Nairobi'))
             current_hour = now.hour
 
             # Logic: Access is denied if current_hour is BEFORE 18 (6 PM) OR current_hour is AT/AFTER 21 (9 PM)
@@ -95,3 +97,73 @@ class RestrictAccessByTimeMiddleware:
         # If not restricted by time, or if not an API path we care about, pass to next middleware/view
         response = self.get_response(request)
         return response
+
+
+# --- NEW MIDDLEWARE: OffensiveLanguageMiddleware (Rate Limiting) ---
+class OffensiveLanguageMiddleware:  # Renamed as per task, but implements rate limiting
+    """
+    Middleware to limit the number of chat messages (POST requests to message endpoints)
+    a user can send within a certain time window, based on their IP address.
+    """
+    # Stores IP addresses and their request timestamps:
+    # { 'ip_address': [timestamp1, timestamp2, ...], ... }
+    _requests_per_ip = {}
+
+    # Configuration for rate limiting
+    MESSAGE_LIMIT = 5
+    TIME_WINDOW_SECONDS = 60  # 1 minute
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+        logger.info(
+            f"OffensiveLanguageMiddleware (Rate Limiter) initialized. Limit: {self.MESSAGE_LIMIT} messages per {self.TIME_WINDOW_SECONDS} seconds.")
+
+    def __call__(self, request):
+        # We only care about POST requests to message creation endpoints
+        # This regex covers /api/conversations/{conv_pk}/messages/
+        # or direct /api/messages/ (if you added a POST method to that route)
+        is_message_post = request.method == 'POST' and \
+                          (request.path.startswith(
+                              '/api/conversations/') and '/messages/' in request.path)  # Or add direct '/api/messages/'
+
+        if is_message_post:
+            ip_address = self._get_client_ip(request)
+            now = timezone.now()
+
+            # Clean up old timestamps for this IP
+            # Filter out timestamps older than the time window
+            if ip_address in self._requests_per_ip:
+                self._requests_per_ip[ip_address] = [
+                    t for t in self._requests_per_ip[ip_address]
+                    if now - t < timedelta(seconds=self.TIME_WINDOW_SECONDS)
+                ]
+            else:
+                self._requests_per_ip[ip_address] = []
+
+            # Check if adding the current request exceeds the limit
+            if len(self._requests_per_ip[ip_address]) >= self.MESSAGE_LIMIT:
+                logger.warning(f"Rate limit exceeded for IP: {ip_address}. Path: {request.path}")
+                # Return a 429 Too Many Requests response (standard for rate limiting)
+                # Or 403 Forbidden as requested in the task. Let's use 403 as per instruction.
+                return HttpResponseForbidden(
+                    f"Too many messages from your IP. Please try again after {self.TIME_WINDOW_SECONDS} seconds.")
+
+            # If not exceeded, add current timestamp
+            self._requests_per_ip[ip_address].append(now)
+            logger.info(
+                f"IP {ip_address} sent message. Count: {len(self._requests_per_ip[ip_address])} in {self.TIME_WINDOW_SECONDS}s.")
+
+        response = self.get_response(request)
+        return response
+
+    def _get_client_ip(self, request):
+        """
+        Helper function to get the client's IP address.
+        Considers X-Forwarded-For header for proxies.
+        """
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            ip = x_forwarded_for.split(',')[0]
+        else:
+            ip = request.META.get('REMOTE_ADDR')
+        return ip
