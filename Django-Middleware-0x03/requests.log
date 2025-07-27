@@ -19,3 +19,7 @@ RequestLoggingMiddleware initialized.
 2025-07-27 19:21:34.196816 - User: john.doe@example.com - Path: /api/
 2025-07-27 19:21:59.537540 - User: john.doe@example.com - Path: /api/conversations/
 2025-07-27 19:22:16.184182 - User: john.doe@example.com - Path: /api/conversations/
+RequestLoggingMiddleware initialized.
+RequestLoggingMiddleware initialized.
+RestrictAccessByTimeMiddleware initialized. Access allowed between 18:00 and 21:00.
+RequestLoggingMiddleware initialized.
