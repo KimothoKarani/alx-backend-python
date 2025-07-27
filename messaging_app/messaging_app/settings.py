@@ -155,6 +155,7 @@ REST_FRAMEWORK = {
         # Session authentication is useful for browser-based API access
         # (e.g., if you also use DRF's browsable API)
         'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.BasicAuthentication',
     ],
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
