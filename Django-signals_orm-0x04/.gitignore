@@ -1,0 +1,71 @@
+# Python compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+env/
+.alx_venv/
+.alx_venv/*
+.alx_venv/
+
+# Environment variables
+*.env
+.env.*
+
+# Django & SQLite database
+db.sqlite3
+db.sqlite3-journal
+
+# Django logs
+*.log
+
+# Media uploads (if user uploads are not meant for version control)
+media/
+
+# Static files (collected files)
+staticfiles/
+static/
+
+# Cache files
+*.cache
+*.pot
+
+# Unit test / coverage reports
+.coverage
+htmlcov/
+.tox/
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+
+# IDE / Editor settings
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Backup files
+*.bak
+*.swp
+
+# Pip dependency folders
+pip-wheel-metadata/
+__pypackages__/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# PyInstaller
+*.spec
+
+# Migrations (optional if you don’t want to track auto-generated files)
+# Uncomment if you want to ignore initial migration files
+# */migrations/*.py
+# !*/migrations/__init__.py
