@@ -1,4 +1,4 @@
-from django.db.models.signals import post_save, pre_save
+from django.db.models.signals import post_save, pre_save, post_delete
 from django.dispatch import receiver
 from django.contrib.auth import get_user_model # Import get_user_model
 from django.utils import timezone
@@ -67,3 +67,54 @@ def log_message_edit(sender, instance, **kwargs):
             # It means the object somehow vanished between being retrieved and pre_save.
             print(f"WARNING: Message {instance.id} not found in DB during pre_save, cannot log history.")
     # If instance.pk is None, it's a new message being created, so no history to log.
+
+# --- NEW SIGNAL: clean_up_user_data (post_delete for User) ---
+@receiver(post_delete, sender=User, dispatch_uid="clean_up_user_data_on_delete")
+def clean_up_user_data(sender, instance, **kwargs):
+    """
+    Signal receiver that automatically cleans up related data when a User is deleted.
+    This runs AFTER the User instance has been removed from the database.
+    """
+    user_id = instance.id # The ID of the user that was just deleted
+
+    print(f"DEBUG: User {instance.username} (ID: {user_id}) deleted. Cleaning up related data...")
+
+    # For Foreign Keys with on_delete=models.CASCADE:
+    # - Messages where this user is the sender (sender)
+    # - Messages where this user is the receiver (receiver)
+    # - Notifications where this user is the recipient (user)
+    # These will be automatically deleted by Django's CASCADE behavior.
+    # So, we don't need to explicitly query and delete them here.
+    # This is the beauty of on_delete=models.CASCADE.
+
+    # For ManyToManyField (if any):
+    # - If User was in a ManyToMany (e.g., Conversation.participants),
+    #   Django automatically handles the removal of the intermediary table entry.
+
+    # For Foreign Keys with on_delete=models.SET_NULL or models.SET_DEFAULT:
+    # - MessageHistory: `edited_by` is ForeignKey(User, on_delete=models.SET_NULL)
+    #   Django will automatically set `edited_by` to NULL for associated MessageHistory records.
+    #   No explicit action needed here for this field either.
+
+    # WHAT TO CLEAN UP EXPLICITLY IN SIGNAL:
+    # In your models, all relevant fields (sender, receiver, user in Notification, edited_by in MessageHistory)
+    # are set to CASCADE or SET_NULL. This means Django's ORM handles the deletion automatically!
+    # So, for your current models, this signal might effectively be empty,
+    # but it demonstrates the *concept* and allows you to add custom cleanup for non-CASCADE fields
+    # or external resources if needed in the future.
+
+    # Example of what you *would* do if related fields were not CASCADE/SET_NULL:
+    # messages_sent = Message.objects.filter(sender=instance) # Would already be deleted by CASCADE
+    # messages_received = Message.objects.filter(receiver=instance) # Would already be deleted by CASCADE
+    # notifications = Notification.objects.filter(user=instance) # Would already be deleted by CASCADE
+    # history_edited = MessageHistory.objects.filter(edited_by=instance) # Would already be SET_NULL
+
+    # So for your current models, this signal handler is primarily for:
+    # 1. Logging the cleanup (which we are doing).
+    # 2. Future custom cleanup (e.g., deleting files uploaded by the user, API keys).
+
+    print(f"DEBUG: Automatic CASCADE/SET_NULL for related data of user {user_id} handled by Django ORM.")
+    print(f"DEBUG: User data cleanup signal for {user_id} completed.")
+
+
+

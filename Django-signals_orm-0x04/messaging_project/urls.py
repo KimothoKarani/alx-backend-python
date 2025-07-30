@@ -20,5 +20,5 @@ from django.urls import path, include
 urlpatterns = [
     path('admin/', admin.site.urls),
     # You might eventually include messaging app URLs here, but not strictly needed for basic signals task
-    #path('messages/', include('messaging.urls')),
+    path('messages/', include('messaging.urls')),
 ]
