@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth import get_user_model
-from .models import Message, Notification
+from .models import Message, Notification, MessageHistory
 
 # Register your models here.
 
@@ -33,3 +33,10 @@ class NotificationAdmin(admin.ModelAdmin):
             return f"{obj.message.id} ({obj.message.content[:20]}...)"
         return "-"
     message_link.short_description = 'Related Message'
+
+@admin.register(MessageHistory) # <-- Register MessageHistory
+class MessageHistoryAdmin(admin.ModelAdmin):
+    list_display = ('message', 'old_content', 'edited_by', 'edited_at')
+    list_filter = ('edited_at', 'message', 'edited_by')
+    search_fields = ('old_content', 'message__content', 'edited_by__username')
+    date_hierarchy = 'edited_at'

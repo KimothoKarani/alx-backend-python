@@ -109,6 +109,10 @@ class Message(models.Model):  # Renamed to singular 'Message'
     # Optional: Add an 'is_read' status, very common for messages
     is_read = models.BooleanField(default=False, help_text="Indicates if the receiver has read the message.")
 
+    edited = models.BooleanField(default=False, help_text="Indicates if this message has been edited.")
+    edited_at = models.DateTimeField(null=True, blank=True, help_text="Timestamp of the last edit.")
+
+
     class Meta:
         verbose_name = "Message"
         verbose_name_plural = "Messages"
@@ -168,3 +172,43 @@ class Notification(models.Model):
         status = "Read" if self.is_read else "Unread"
         # Display the notification content and status
         return f"Notification for {self.user.username}: '{self.content[:50]}...' ({status})"
+
+
+# --- NEW MODEL: MessageHistory ---
+class MessageHistory(models.Model):
+    """
+    Stores historical versions of a message's content after it has been edited.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    # Link to the original Message
+    message = models.ForeignKey(
+        Message,
+        on_delete=models.CASCADE,  # If the original message is deleted, delete its history
+        related_name='history',
+        help_text="The original message this history entry belongs to."
+    )
+
+    old_content = models.TextField(
+        help_text="The content of the message before the edit."
+    )
+
+    edited_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,  # If the user who edited is deleted, keep the history but set to null
+        null=True,
+        blank=True,
+        related_name='edited_messages_history',
+        help_text="The user who performed this edit (optional)."
+    )
+
+    edited_at = models.DateTimeField(auto_now_add=True, help_text="Timestamp when this version was saved.")
+
+    class Meta:
+        verbose_name = "Message History"
+        verbose_name_plural = "Message History"
+        ordering = ['edited_at']  # Order history chronologically
+
+    def __str__(self):
+        editor = self.edited_by.username if self.edited_by else "Unknown"
+        return f"History for Message {self.message.id} by {editor} at {self.edited_at.strftime('%Y-%m-%d %H:%M')}"
