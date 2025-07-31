@@ -4,6 +4,7 @@ from django.contrib.auth.base_user import BaseUserManager
 # messaging/models.py (at the top, for the User model)
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.db.models import Q
 from django.utils.translation import gettext_lazy as _  # For verbose names
 
 
@@ -81,24 +82,127 @@ class User(AbstractUser):
         return full_name if full_name else self.email  # Fallback to email if name isn't set
 
 
-class Message(models.Model):  # Renamed to singular 'Message'
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4,
-                          editable=False)  # Use UUID for consistency with previous project
 
-    # Use ForeignKey to link to the User model
+# Adding a custom manager for better query methods
+class MessageManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset()
+
+    def with_related_data(self):
+        return self.get_queryset().select_related('sender', 'receiver', 'parent_message') \
+            .prefetch_related('replies')
+
+    def get_threaded_messages(self, conversation_id=None, base_message_id=None):
+        """
+        Retrieves messages and organizes them into a threaded (tree-like) structure.
+        Optimized using select_related and prefetch_related.
+
+        :param conversation_id: Optional UUID to filter messages for a specific conversation.
+                                (If you add a FK to Conversation model in Message)
+        :param base_message_id: Optional UUID to fetch a specific message and all its replies.
+        :return: A list of top-level Message instances, each having a 'replies_list' attribute
+                 containing their nested replies.
+        """
+        # Fetch all relevant messages with optimized related data
+        queryset = self.with_related_data()
+
+        if conversation_id:
+            # Assuming Message has a ForeignKey to a Conversation model
+            # queryset = queryset.filter(conversation_id=conversation_id)
+            # For current models, let's just get all messages for now if no Conversation FK
+            pass
+
+        if base_message_id:
+            # If fetching a specific thread, get the base message and all its descendants.
+            # This requires fetching ALL messages in the conversation/thread, then building the tree.
+            # A true recursive query in Django ORM is complex without raw SQL.
+            # Here, we fetch all, then build the tree.
+            base_message = queryset.filter(id=base_message_id).first()
+            if not base_message:
+                return []
+
+            # Fetch all messages that could potentially be part of this thread
+            # (assuming they are in the same conversation for a real chat app)
+            # For direct messages, this means all messages sent by/to sender/receiver of base_message
+            thread_messages = queryset.filter(
+                Q(sender=base_message.sender, receiver=base_message.receiver) |
+                Q(sender=base_message.receiver, receiver=base_message.sender) |
+                Q(parent_message=base_message) |
+                Q(parent_message__parent_message=base_message)
+                # Need more complex joins/filtering for deep recursion without raw SQL
+            ).distinct().order_by('timestamp')  # Order them for tree building
+
+            # Build the thread tree
+            message_map = {msg.id: msg for msg in thread_messages}
+
+            for msg_id, msg in message_map.items():
+                msg.replies_list = []  # Add a list to hold child replies
+
+            # Assign replies to their parents
+            for msg_id, msg in message_map.items():
+                if msg.parent_message_id and msg.parent_message_id in message_map:
+                    message_map[msg.parent_message_id].replies_list.append(msg)
+
+            # The top-level messages are those without a parent or whose parent is not in our fetched set
+            top_level_messages = [
+                msg for msg_id, msg in message_map.items()
+                if msg.parent_message_id is None or msg.parent_message_id not in message_map
+            ]
+
+            # Sort replies within each parent
+            for msg in message_map.values():
+                msg.replies_list.sort(key=lambda x: x.timestamp)
+
+            return sorted(top_level_messages, key=lambda x: x.timestamp)
+
+        # If no specific base_message_id, return all top-level messages (no parent)
+        # For a full chat conversation, you'd filter by conversation ID here
+        return queryset.filter(parent_message__isnull=True)  # Returns messages that are not replies
+
+
+# Make sure Message model uses this manager
+# class Message(models.Model):
+#    objects = MessageManager()
+#    ...
+
+
+# --- Message Model (MODIFIED for threading) ---
+class Message(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     sender = models.ForeignKey(
-        User,  # Link to our custom User model
-        on_delete=models.CASCADE,  # If sender user is deleted, delete their messages
-        related_name='sent_messages',  # Access messages sent by a user via user.sent_messages.all()
+        User,
+        on_delete=models.CASCADE,
+        related_name='sent_messages',
         help_text="The user who sent this message."
     )
 
     receiver = models.ForeignKey(
-        User,  # Link to our custom User model
-        on_delete=models.CASCADE,  # If receiver user is deleted, delete messages addressed to them
-        related_name='received_messages',  # Access messages received by a user via user.received_messages.all()
+        User,
+        on_delete=models.CASCADE,
+        related_name='received_messages',
         help_text="The user who is intended to receive this message."
     )
+
+    # NEW: Self-referential ForeignKey for replies
+    parent_message = models.ForeignKey(
+        'self',  # Refers to the Message model itself
+        on_delete=models.SET_NULL,  # If parent message is deleted, replies become top-level
+        null=True,  # Allows a message to be a top-level message (no parent)
+        blank=True,  # Allows forms to leave this field blank
+        related_name='replies',  # Access replies to a message via message.replies.all()
+        help_text="The message this message is a reply to."
+    )
+
+    # NEW: Link to Conversation (assuming messages belong to conversations for context)
+    # This might have been implicitly handled by previous messaging_app structure,
+    # but for a standalone chat, it's good to define it if replies are within a conversation.
+    # If messages are just direct 1-1, you might omit this or use specific chat sessions.
+    # For robust threading, a conversation ID is useful to group messages.
+    # If this is part of your previous 'chats' app, this FK might already exist.
+    # If not, let's add a basic one for context.
+    # For simplicity, let's keep it simple direct messaging based on sender/receiver for now.
+    # If you have a separate Conversation model you'd link to that.
 
     content = models.TextField(
         help_text="The body of the message."
@@ -106,28 +210,26 @@ class Message(models.Model):  # Renamed to singular 'Message'
 
     timestamp = models.DateTimeField(auto_now_add=True)
 
-    # Optional: Add an 'is_read' status, very common for messages
     is_read = models.BooleanField(default=False, help_text="Indicates if the receiver has read the message.")
 
     edited = models.BooleanField(default=False, help_text="Indicates if this message has been edited.")
     edited_at = models.DateTimeField(null=True, blank=True, help_text="Timestamp of the last edit.")
 
+    objects = MessageManager()
 
     class Meta:
         verbose_name = "Message"
         verbose_name_plural = "Messages"
-        ordering = ['timestamp']  # Order messages by time sent, ascending (most common for chats)
-        # Adding an index for efficient message retrieval for conversations/users
+        ordering = ['timestamp']  # Order messages by time sent, ascending
         indexes = [
             models.Index(fields=['sender', 'receiver', 'timestamp']),
-            models.Index(fields=['receiver', 'is_read', 'timestamp']),  # For unread messages for a user
+            models.Index(fields=['receiver', 'is_read', 'timestamp']),
+            models.Index(fields=['parent_message', 'timestamp']),  # <-- NEW INDEX for replies
         ]
 
     def __str__(self):
-        # A more descriptive string representation including sender and receiver usernames
-        # models.py
-        return f"Message from {self.sender.email} to {self.receiver.email} at {self.timestamp.strftime('%Y-%m-%d %H:%M')}"
-
+        parent_info = f" (Reply to {self.parent_message.id})" if self.parent_message else ""
+        return f"Message from {self.sender.username} to {self.receiver.username} at {self.timestamp.strftime('%Y-%m-%d %H:%M')}{parent_info}"
 
 class Notification(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

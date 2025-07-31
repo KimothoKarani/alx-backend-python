@@ -16,16 +16,17 @@ class CustomUserAdmin(admin.ModelAdmin):
 
 @admin.register(Message)
 class MessageAdmin(admin.ModelAdmin):
-    list_display = ('sender', 'receiver', 'content', 'timestamp', 'is_read')
-    list_filter = ('timestamp', 'is_read', 'sender', 'receiver')
-    search_fields = ('content', 'sender__username', 'receiver__username')
-    date_hierarchy = 'timestamp' # Adds navigation by date
+    list_display = ('sender', 'receiver', 'parent_message', 'content', 'timestamp', 'is_read', 'edited', 'edited_at') # <-- Add parent_message
+    list_filter = ('timestamp', 'is_read', 'sender', 'receiver', 'edited', 'parent_message') # <-- Add parent_message to filter
+    search_fields = ('content', 'sender__email', 'receiver__email', 'parent_message__content') # <-- Search by parent content
+    date_hierarchy = 'timestamp'
+    raw_id_fields = ('sender', 'receiver', 'parent_message') # Good for ForeignKey fields, especially self-referential
 
 @admin.register(Notification)
 class NotificationAdmin(admin.ModelAdmin):
     list_display = ('user', 'content', 'timestamp', 'is_read', 'message_link')
     list_filter = ('timestamp', 'is_read', 'user')
-    search_fields = ('content', 'user__username')
+    search_fields = ('content', 'user__email')
     date_hierarchy = 'timestamp'
 
     def message_link(self, obj):
