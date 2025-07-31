@@ -1,0 +1,19 @@
+{# messaging/templates/messaging/message_list.html #}
+{% extends "base.html" %}
+
+{% block title %}My Messages{% endblock %}
+
+{% block content %}
+    <h2>My Messages</h2>
+    <a href="{% url 'send_message' %}" class="btn btn-primary mb-3">Send New Message</a>
+
+    {% if messages %}
+        <div class="message-threads">
+            {% for message in messages %}
+                {{ message.html|safe }} {# Render HTML from the helper function #}
+            {% endfor %}
+        </div>
+    {% else %}
+        <p>You have no messages yet.</p>
+    {% endif %}
+{% endblock %}

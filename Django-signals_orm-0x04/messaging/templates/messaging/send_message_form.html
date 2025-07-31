@@ -1,0 +1,29 @@
+{# messaging/templates/messaging/send_message_form.html #}
+{% extends "base.html" %}
+
+{% block title %}Send New Message{% endblock %}
+
+{% block content %}
+    <h2>Send New Message</h2>
+    <form method="post" action="{% url 'send_message' %}">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="receiver">Receiver:</label>
+            <select name="receiver_id" id="receiver" class="form-control" required>
+                {% for user_obj in users %}
+                    <option value="{{ user_obj.id }}">{{ user_obj.get_full_name }} ({{ user_obj.email }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="content">Message Content:</label>
+            <textarea name="content" id="content" class="form-control" rows="5" required></textarea>
+        </div>
+        {# Add field for parent_message_id if sending replies directly from form #}
+        {# <div class="form-group"> #}
+        {#     <label for="parent_message_id">Reply to Message ID (Optional):</label> #}
+        {#     <input type="text" name="parent_message_id" id="parent_message_id" class="form-control"> #}
+        {# </div> #}
+        <button type="submit" class="btn btn-primary mt-3">Send Message</button>
+    </form>
+{% endblock %}
