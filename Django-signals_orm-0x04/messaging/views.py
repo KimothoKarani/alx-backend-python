@@ -200,7 +200,7 @@ def unread_messages_list(request):
     Leverages the custom UnreadMessagesManager and .only() optimization.
     """
     # Use the custom manager to get unread messages optimized
-    unread_messages_qs = Message.unread_messages.for_user(request.user)
+    unread_messages_qs = Message.unread.unread_for_user(request.user)
 
     # Convert queryset to list and prepare for rendering if needed (e.g., if rendering with render_message_thread)
     # For a simple list, you might just iterate in the template.
