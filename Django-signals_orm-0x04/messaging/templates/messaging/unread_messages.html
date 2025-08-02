@@ -1,0 +1,26 @@
+{# messaging/templates/messaging/unread_messages.html #}
+{% extends "base.html" %}
+
+{% block title %}My Unread Messages{% endblock %}
+
+{% block content %}
+    <h2>My Unread Messages</h2>
+    <p>You have {{ unread_messages.count }} unread message{{ unread_messages.count|pluralize }}.</p>
+
+    {% if unread_messages %}
+        <div class="unread-message-list">
+            {% for message in unread_messages %}
+                <div style="border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; border-radius: 5px;">
+                    <p><strong>From: {{ message.sender.get_full_name }}</strong></p>
+                    <p>{{ message.content }}</p>
+                    <small>Received: {{ message.timestamp|date:"F j, Y, P" }}</small>
+                    <br>
+                    {# Link to mark as read or view full thread #}
+                    <a href="{% url 'message_list' %}?message_id={{ message.id }}">View Full Thread</a>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="alert alert-info">You have no unread messages.</div>
+    {% endif %}
+{% endblock %}

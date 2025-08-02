@@ -166,6 +166,31 @@ class MessageManager(models.Manager):
 #    ...
 
 
+# --- Custom Message Manager for Unread Messages ---
+class UnreadMessagesManager(models.Manager):
+    """
+    Custom manager for the Message model to filter unread messages for a specific user.
+    """
+    def for_user(self, user):
+        """
+        Returns a queryset of unread messages for the given user (as receiver).
+        Optimized with .only() to retrieve only necessary fields for display.
+        """
+        # Select related sender and parent_message to avoid N+1 queries later
+        # Only retrieve essential fields using .only()
+        # This is the optimization part.
+        return self.get_queryset().select_related('sender', 'parent_message').filter(
+            receiver=user,
+            is_read=False
+        ).only(
+            'id', 'sender', 'receiver', 'content', 'timestamp', 'is_read', 'edited', 'edited_at', 'parent_message'
+            # Must include all fields needed for display (sender, receiver, parent_message will be objects due to select_related)
+            # and any fields directly accessed like content, timestamp, is_read, edited, edited_at.
+            # Also include 'id' and 'parent_message' foreign key fields (even if nullable)
+        ).order_by('-timestamp') # Order by most recent unread first
+
+
+
 # --- Message Model (MODIFIED for threading) ---
 class Message(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -216,6 +241,8 @@ class Message(models.Model):
     edited_at = models.DateTimeField(null=True, blank=True, help_text="Timestamp of the last edit.")
 
     objects = MessageManager()
+    unread_messages = UnreadMessagesManager()
+
 
     class Meta:
         verbose_name = "Message"

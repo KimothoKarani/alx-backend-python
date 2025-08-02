@@ -8,6 +8,8 @@ urlpatterns = [
     # New paths for messaging features
     path('send-message/', views.create_message, name='send_message'),  # For the message creation form
     path('messages/', views.message_list, name='message_list'),  # For listing messages
+    # New path for unread messages list
+    path('messages/unread/', views.unread_messages_list, name='unread_messages_list'),
 
 
 ]

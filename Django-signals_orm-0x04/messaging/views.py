@@ -191,3 +191,24 @@ def message_list(request):
         'messages': top_level_messages_for_user,
     }
     return render(request, 'messaging/message_list.html', context)
+
+
+@login_required # New view for unread messages list
+def unread_messages_list(request):
+    """
+    View to display only unread messages for the current user.
+    Leverages the custom UnreadMessagesManager and .only() optimization.
+    """
+    # Use the custom manager to get unread messages optimized
+    unread_messages_qs = Message.unread_messages.for_user(request.user)
+
+    # Convert queryset to list and prepare for rendering if needed (e.g., if rendering with render_message_thread)
+    # For a simple list, you might just iterate in the template.
+
+    # If you want to show them threaded, you'd need to fetch related replies too and build the tree.
+    # For simplicity, let's just list them as a flat list here, as the objective is to *use* the manager.
+
+    context = {
+        'unread_messages': unread_messages_qs,
+    }
+    return render(request, 'messaging/unread_messages.html', context)
