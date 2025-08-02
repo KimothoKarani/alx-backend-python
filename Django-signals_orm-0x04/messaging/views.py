@@ -10,6 +10,7 @@ from django.db.models import Q  # For OR queries in filters
 from django.urls import reverse
 
 from .models import Message, Notification, MessageHistory, User  # Import all models
+from django.views.decorators.cache import cache_page
 
 
 # Helper function to render a message and its replies recursively for the template
@@ -145,12 +146,16 @@ def create_message(request):
     return render(request, 'messaging/send_message_form.html', {'users': users, 'initial_data': initial_data})
 
 
+@cache_page(60) #Cache this view for 60 seconds
 @login_required
 def message_list(request):
     """
     View to display messages in a threaded format for the current user.
     Uses optimized queries and recursive logic to build the thread.
     """
+
+    print("DEBUG: message_list view is being executed (or served from cache if less than 60s since last visit).") # For testing cache
+
     # Fetch all messages involving the current user with optimized related data
     # This part satisfies the "Message.objects.filter" demand
     all_related_messages_for_user = Message.objects.select_related('sender', 'receiver', 'parent_message') \
