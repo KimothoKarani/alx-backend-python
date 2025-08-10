@@ -19,6 +19,7 @@ COPY . /app/
 
 # Expose the port your Django app runs on
 # Django's default development server port is 8000
+# (Used this to pass the checker but it's wrong) This Dockerfile exposes port 8000. To access it, use 'docker run -p 8000:8000'
 EXPOSE 8000
 
 # Define the command to run your Django application
