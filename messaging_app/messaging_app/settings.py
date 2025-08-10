@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'corsheaders',  # If your frontend is on a different domain/port
     'django_filters',  # <-- ADD THIS LINE
+    'django_extensions',
 
 ]
 
