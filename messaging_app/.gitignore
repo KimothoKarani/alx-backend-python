@@ -22,3 +22,10 @@ media/
 
 # optional
 post_man-Collections
+
+
+# Docker specific
+*.env
+
+# Database
+*.sqlite3

@@ -9,6 +9,14 @@ WORKDIR /app
 # If requirements.txt doesn't change, this layer won't be rebuilt.
 COPY requirements.txt /app/
 
+# Install system-level dependencies required for mysqlclient and other potential packages
+# default-libmysqlclient-dev: Provides development headers for MySQL client library
+# gcc: The GNU C compiler, often needed to compile Python packages with C extensions
+# pkg-config: A tool used to compile applications and libraries
+RUN apt-get update \
+    && apt-get install -y default-libmysqlclient-dev gcc pkg-config \
+    && rm -rf /var/lib/apt/lists/* # Clean up apt cache to keep image small
+
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 

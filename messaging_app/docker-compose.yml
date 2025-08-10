@@ -1,0 +1,44 @@
+# messaging_app/docker-compose.yml
+services:
+  web:
+    build: .
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./.env
+    depends_on:
+      db:
+        condition: service_healthy # This makes web wait for db's health check
+    environment: # These are passed to the web container
+      - DATABASE_NAME=${MYSQL_DATABASE}
+      - DATABASE_USER=${MYSQL_USER}
+      - DATABASE_PASSWORD=${MYSQL_PASSWORD}
+      - DATABASE_HOST=db # 'db' is the service name, which becomes the hostname
+      - DATABASE_PORT=3306
+      - SECRET_KEY=${SECRET_KEY}
+
+  db:
+    image: mysql:8.0
+    ports:
+      - "3306:3306" # Optional for external tools, but useful
+    env_file: # Load database credentials from the .env file for MySQL init
+      - ./.env
+    environment: # MySQL specific environment variables
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql # Persistent volume for MySQL data
+    healthcheck: # Healthcheck definition for the db service
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u$$MYSQL_USER", "-p$$MYSQL_PASSWORD"]
+      interval: 5s # Check every 5 seconds
+      timeout: 3s # Timeout after 3 seconds
+      retries: 10 # Retry 10 times (up to 50 seconds total before marking unhealthy)
+      start_period: 20s # Give the DB 20 seconds to start before first health check
+
+volumes:
+  db_data: # Define the named volume

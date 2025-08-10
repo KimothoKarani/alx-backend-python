@@ -9,6 +9,7 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
+import os
 from datetime import timedelta
 from pathlib import Path
 from decouple import config
@@ -93,11 +94,17 @@ WSGI_APPLICATION = 'messaging_app.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': config('DATABASE_NAME'),
+        'USER': config('DATABASE_USER'),
+        'PASSWORD': config('DATABASE_PASSWORD'),
+        'HOST': config('DATABASE_HOST'), # This will be 'db'
+        'PORT': config('DATABASE_PORT', default='3306'), # Add a default in case .env is missing
+        'OPTIONS': {
+            'init_command': "SET default_storage_engine=InnoDB",
+        }
     }
 }
-
 # Add this section
 AUTHENTICATION_BACKENDS = [
     'chats.auth.EmailBackend', # Your custom backend
