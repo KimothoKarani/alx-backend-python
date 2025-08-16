@@ -1,0 +1,110 @@
+#!/bin/bash
+
+# Function to check if a command exists
+command_exists () {
+  command -v "$1" >/dev/null 2>&1
+}
+
+echo "--- Kubernetes Rolling Update Strategy ---"
+
+# Check for kubectl
+echo "Checking for kubectl..."
+if ! command_exists kubectl; then
+  echo "Error: kubectl is not installed. Please install it to interact with Kubernetes."
+  exit 1
+fi
+echo "kubectl is installed."
+
+# Check for curl
+echo "Checking for curl..."
+if ! command_exists curl; then
+  echo "Error: curl is not installed. Please install it (e.g., 'sudo apt install curl')."
+  exit 1
+fi
+echo "curl is installed."
+
+# Define deployment and service names
+BLUE_DEPLOYMENT_NAME="django-messaging-app-blue-deployment"
+DJANGO_SERVICE_NAME="django-messaging-app-service"
+
+# --- Ensure MySQL and Secrets are in place (from previous steps) ---
+echo "Ensuring necessary resources (MySQL, Secrets) are applied..."
+kubectl apply -f secret.yaml || { echo "Failed to apply secret.yaml. Exiting."; exit 1; }
+# Assuming MySQL deployment is stable and managed. If it's in a separate file like mysql_deployment.yaml, apply it here:
+# kubectl apply -f mysql_deployment.yaml
+echo "Secrets applied."
+
+# --- IMPORTANT: Ensure the main service points to the 'blue' deployment ---
+# After blue-green, the service might be pointing to 'green'.
+# For a rolling update of the 'blue' deployment, the service must target 'blue'.
+echo "Ensuring service '$DJANGO_SERVICE_NAME' selects '$BLUE_DEPLOYMENT_NAME' pods..."
+kubectl patch service "$DJANGO_SERVICE_NAME" -p '{"spec":{"selector":{"app":"django-messaging-app-blue"}}}' || { echo "Failed to patch service selector to blue. Exiting."; exit 1; }
+echo "Service selector confirmed to 'app: django-messaging-app-blue'."
+kubectl get service "$DJANGO_SERVICE_NAME" -o yaml | grep "app:"
+echo ""
+
+# Get Minikube Ingress URL for testing
+echo "Getting Minikube Ingress URL for continuous testing..."
+MINIKUBE_URL=$(minikube service ingress-nginx-controller --url -n ingress-nginx) # Get URL for the ingress controller
+# If you are using `django.local` in your /etc/hosts, you can use that directly
+TEST_URL="http://django.local" # Assuming you configured /etc/hosts as per Ingress step
+echo "Testing application at: $TEST_URL"
+
+# --- Start continuous curl requests in the background ---
+echo "Starting continuous curl requests to detect downtime (press Ctrl+C to stop this script and the curl loop)..."
+# Using a counter to show progress and avoid too much output
+REQUEST_COUNT=0
+(while true; do
+  STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$TEST_URL")
+  if [ "$STATUS_CODE" -eq 200 ]; then
+    echo -n "." # Print a dot for success
+  else
+    echo -n "X ($STATUS_CODE) " # Print X for error
+  fi
+  REQUEST_COUNT=$((REQUEST_COUNT+1))
+  # Display a newline every 50 requests to keep output manageable
+  if [ $((REQUEST_COUNT % 50)) -eq 0 ]; then
+    echo ""
+  fi
+  sleep 0.1 # Short delay between requests
+done) &
+
+CURL_PID=$! # Store the PID of the background curl process
+echo "Curl process PID: $CURL_PID"
+echo "(Look for 'X's in the output to detect downtime during the update.)"
+echo ""
+
+# --- Apply the updated deployment file and trigger a rolling update ---
+echo "Applying the updated '$BLUE_DEPLOYMENT_NAME' to trigger rolling update..."
+kubectl apply -f blue_deployment.yaml || { echo "Failed to apply blue_deployment.yaml. Exiting."; kill $CURL_PID; exit 1; }
+echo "Deployment update initiated."
+echo ""
+
+# --- Monitor the update progress ---
+echo "Monitoring rolling update progress..."
+kubectl rollout status deployment/"$BLUE_DEPLOYMENT_NAME"
+if [ $? -ne 0 ]; then
+  echo "Error: Rolling update failed or timed out. Check 'kubectl describe deployment $BLUE_DEPLOYMENT_NAME' and 'kubectl get events'."
+  kill $CURL_PID
+  exit 1
+fi
+echo "Rolling update completed successfully!"
+echo ""
+
+# --- Stop the background curl process ---
+echo "Stopping continuous curl requests..."
+kill $CURL_PID
+wait $CURL_PID 2>/dev/null # Wait for the background process to truly terminate
+echo "Curl process stopped."
+echo ""
+
+# --- Verify the Rolling Update is Complete by checking the current pods ---
+echo "Verifying current pods for '$BLUE_DEPLOYMENT_NAME' (should all be new versions):"
+kubectl get pods -l app=django-messaging-app-blue
+echo ""
+
+echo "--- Rolling Update Complete ---"
+echo "You should have seen continuous '.'s during the update, indicating zero downtime."
+echo "If you saw 'X's, it indicates a brief disruption."
+echo "Check the logs of the new pods to confirm the 'v2.0-rolling-update' version."
+echo "Example: kubectl logs \$(kubectl get pods -l app=django-messaging-app-blue -o jsonpath='{.items[0].metadata.name}')"

@@ -1,26 +1,30 @@
-# This is the "blue" (current/stable) version of your Django app.
+# This is the "blue" deployment, now being updated to version 2.0 via rolling update.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  # Renamed for clarity in blue-green strategy
   name: django-messaging-app-blue-deployment
   labels:
-    app: django-messaging-app-blue # Specific label for blue version
-    app-version: blue # Another label to identify version
+    app: django-messaging-app-blue # This label remains constant for the blue deployment
+    # app-version: blue # This label is less critical now as we're updating the 'blue' itself
 spec:
-  replicas: 1 # Start with 1 replica for blue
+  replicas: 3 # You can set this to your desired final replica count. Let's keep it at 3 for demonstration.
   selector:
     matchLabels:
       app: django-messaging-app-blue
+  strategy:
+    type: RollingUpdate # Ensure this is RollingUpdate (default, but good to be explicit)
+    rollingUpdate:
+      maxSurge: 25% # Max number of pods that can be created above the desired amount
+      maxUnavailable: 25% # Max number of pods that can be unavailable during the update
   template:
     metadata:
       labels:
         app: django-messaging-app-blue
-        app-version: blue
+        # app-version: blue # No longer needed here if APP_VERSION is an env var
     spec:
       containers:
       - name: django-messaging-app
-        image: messaging_app-web:latest # Your Docker image for the blue version
+        image: messaging_app-web:2.0 # <--- IMPORTANT: Changed to the new version 2.0
         ports:
         - containerPort: 8000
         env:
@@ -41,8 +45,8 @@ spec:
             secretKeyRef:
               name: django-app-secrets
               key: mysql-app-password
-        - name: APP_VERSION # Add a version identifier for demonstration
-          value: "blue-v1.0"
+        - name: APP_VERSION # <--- IMPORTANT: Updated to reflect the new version
+          value: "v2.0-rolling-update"
         # Optional: Health checks (recommended for production)
         # livenessProbe:
         #   httpGet:
