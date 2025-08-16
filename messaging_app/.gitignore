@@ -29,3 +29,5 @@ post_man-Collections
 
 # Database
 *.sqlite3
+
+secret.yaml
