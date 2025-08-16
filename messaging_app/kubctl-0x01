@@ -1,0 +1,88 @@
+#!/bin/bash
+
+# Function to check if a command exists
+command_exists () {
+  command -v "$1" >/dev/null 2>&1
+}
+
+echo "--- Scaling and Load Testing Django App ---"
+
+# Check for kubectl
+echo "Checking for kubectl..."
+if ! command_exists kubectl; then
+  echo "Error: kubectl is not installed. Please install it to interact with Kubernetes."
+  exit 1
+fi
+echo "kubectl is installed."
+
+# Check for wrk
+echo "Checking for wrk (load testing tool)..."
+if ! command_exists wrk; then
+  echo "Error: wrk is not installed. Please install it (e.g., 'sudo apt install wrk' or 'brew install wrk')."
+  exit 1
+fi
+echo "wrk is installed."
+
+# Define Django app deployment name
+DJANGO_DEPLOYMENT_NAME="django-messaging-app-deployment"
+DJANGO_SERVICE_NAME="django-messaging-app-service"
+
+# 1. Scale the Django app deployment to 3 replicas
+echo "Scaling deployment '$DJANGO_DEPLOYMENT_NAME' to 3 replicas..."
+kubectl scale deployment "$DJANGO_DEPLOYMENT_NAME" --replicas=3
+if [ $? -ne 0 ]; then
+  echo "Error: Failed to scale deployment. Exiting."
+  exit 1
+fi
+echo "Scaling command sent."
+
+# Wait for pods to be ready
+echo "Waiting for 3 pods to be ready (this may take a moment)..."
+kubectl wait --for=condition=Ready pod -l app=django-messaging-app --timeout=300s
+if [ $? -ne 0 ]; then
+  echo "Error: Pods did not become ready within the timeout. Check 'kubectl get pods' and 'kubectl describe pod <pod-name>'."
+  exit 1
+fi
+echo "All 3 Django app pods are ready."
+
+# 2. Verify that multiple pods are running
+echo "Verifying running pods for '$DJANGO_DEPLOYMENT_NAME':"
+kubectl get pods -l app=django-messaging-app
+echo ""
+
+# 3. Perform load testing on your app using wrk
+echo "Starting Minikube service tunnel to get external URL for load testing..."
+# This command keeps the tunnel open in the background & prints the URL
+# It assumes minikube is running and the service is available.
+MINIKUBE_URL=$(minikube service "$DJANGO_SERVICE_NAME" --url)
+
+if [ -z "$MINIKUBE_URL" ]; then
+  echo "Error: Could not get Minikube service URL. Is Minikube running and the service healthy?"
+  exit 1
+fi
+
+echo "Django app accessible at: $MINIKUBE_URL"
+echo "Performing load test on the app using wrk (10s duration, 4 threads, 100 connections)..."
+echo "(This might show some connection errors initially if the tunnel or app is just warming up, but should stabilize.)"
+# Run wrk with 4 threads, 100 connections, for 10 seconds
+wrk -t4 -c100 -d10s "$MINIKUBE_URL"
+
+echo ""
+echo "Load testing complete."
+
+# 4. Monitor Resource Usage
+echo "Monitoring resource usage of Django app pods (CPU/Memory):"
+kubectl top pod -l app=django-messaging-app --containers # Shows per container resource usage
+if [ $? -ne 0 ]; then
+  echo "Warning: Could not retrieve pod top metrics. Ensure Metrics Server is running in your cluster (e.g., 'minikube addons enable metrics-server')."
+fi
+echo ""
+
+echo "Monitoring resource usage of the Minikube node (CPU/Memory):"
+kubectl top node
+if [ $? -ne 0 ]; then
+  echo "Warning: Could not retrieve node top metrics. Ensure Metrics Server is running in your cluster."
+fi
+echo ""
+
+echo "--- Script Execution Complete ---"
