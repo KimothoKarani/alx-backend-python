@@ -1,0 +1,58 @@
+# This is the "green" (new/upcoming) version of your Django app.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: django-messaging-app-green-deployment # Different name for green version
+  labels:
+    app: django-messaging-app-green # Specific label for green version
+    app-version: green # Another label to identify version
+spec:
+  replicas: 1 # Start with 1 replica for green (you can scale this up later if needed)
+  selector:
+    matchLabels:
+      app: django-messaging-app-green
+  template:
+    metadata:
+      labels:
+        app: django-messaging-app-green
+        app-version: green
+    spec:
+      containers:
+      - name: django-messaging-app
+        # In a real scenario, this 'image' tag would be 'messaging_app-web:v2' or similar
+        image: messaging_app-web:latest # Using 'latest' for this demo, assumes it's the 'new' code
+        ports:
+        - containerPort: 8000
+        env:
+        # Fetch sensitive info from the 'django-app-secrets' Secret
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: django-app-secrets
+              key: django-secret-key
+        - name: DB_HOST
+          value: mysql-service
+        - name: DB_NAME
+          value: djangodb
+        - name: DB_USER
+          value: django_user
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: django-app-secrets
+              key: mysql-app-password
+        - name: APP_VERSION # Different version identifier
+          value: "green-v2.0" # This helps you visually confirm the switch
+        # Optional: Health checks (recommended for production)
+        # livenessProbe:
+        #   httpGet:
+        #     path: /healthz
+        #     port: 8000
+        #   initialDelaySeconds: 15
+        #   periodSeconds: 10
+        # readinessProbe:
+        #   httpGet:
+        #     path: /readyz
+        #     port: 8000
+        #   initialDelaySeconds: 10
+        #   periodSeconds: 10

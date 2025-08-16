@@ -1,0 +1,100 @@
+#!/bin/bash
+
+# Function to check if a command exists
+command_exists () {
+  command -v "$1" >/dev/null 2>&1
+}
+
+echo "--- Kubernetes Blue-Green Deployment Strategy ---"
+
+# Check for kubectl
+echo "Checking for kubectl..."
+if ! command_exists kubectl; then
+  echo "Error: kubectl is not installed. Please install it to interact with Kubernetes."
+  exit 1
+fi
+echo "kubectl is installed."
+
+# Define deployment and service names
+BLUE_DEPLOYMENT_NAME="django-messaging-app-blue-deployment"
+GREEN_DEPLOYMENT_NAME="django-messaging-app-green-deployment"
+DJANGO_SERVICE_NAME="django-messaging-app-service"
+
+# --- Preparation: Ensure MySQL and Secrets are in place ---
+echo "Ensuring MySQL deployment and django-app-secrets are applied..."
+# Assuming secret.yaml contains the MySQL deployment as well
+# In a real scenario, MySQL would be a separate, persistent service.
+# For this exercise, we re-apply the secret and MySQL for consistency.
+kubectl apply -f secret.yaml || { echo "Failed to apply secret.yaml. Exiting."; exit 1; }
+echo "Secret applied."
+
+# Also ensure the MySQL deployment is in place
+# If you moved MySQL deployment to a separate file, apply it here.
+# For simplicity in this demo, we'll assume it's part of the original setup or handled.
+# If you put MySQL in a separate file (e.g., mysql_deployment.yaml)
+# kubectl apply -f mysql_deployment.yaml
+
+# --- Step 0: Clean up any old django-messaging-app-deployment if it exists ---
+echo "Cleaning up any existing generic Django deployment (django-messaging-app-deployment)..."
+kubectl delete deployment django-messaging-app-deployment --ignore-not-found
+echo "Old deployment cleanup attempted."
+
+# --- Step 1: Deploy the "Blue" (current) version ---
+echo "Deploying the 'blue' version of the Django app..."
+kubectl apply -f blue_deployment.yaml || { echo "Failed to apply blue_deployment.yaml. Exiting."; exit 1; }
+echo "Blue deployment applied."
+
+echo "Waiting for blue pods to be ready..."
+kubectl wait --for=condition=Ready pod -l app=django-messaging-app-blue --timeout=300s || { echo "Blue pods not ready. Exiting."; exit 1; }
+echo "Blue pods are ready."
+
+# --- Step 2: Deploy the Service (initially pointing to Blue) ---
+echo "Deploying/Updating the main Django app service (initially pointing to blue)..."
+kubectl apply -f kubeservice.yaml || { echo "Failed to apply kubeservice.yaml. Exiting."; exit 1; }
+echo "Service applied/updated to point to blue."
+
+echo "--- Blue version is now active. You can test it via Ingress (http://django.local) ---"
+echo ""
+echo "--- Step 3: Deploy the new 'Green' version ---"
+echo "Deploying the 'green' version of the Django app..."
+kubectl apply -f green_deployment.yaml || { echo "Failed to apply green_deployment.yaml. Exiting."; exit 1; }
+echo "Green deployment applied."
+
+echo "Waiting for green pods to be ready (this may take a moment)..."
+kubectl wait --for=condition=Ready pod -l app=django-messaging-app-green --timeout=300s || { echo "Green pods not ready. Exiting."; exit 1; }
+echo "Green pods are ready."
+
+# --- Step 4: Check logs of the new "Green" version for errors ---
+echo "Checking logs for a green pod to ensure it started without errors..."
+GREEN_POD_NAME=$(kubectl get pods -l app=django-messaging-app-green -o jsonpath='{.items[0].metadata.name}')
+if [ -n "$GREEN_POD_NAME" ]; then
+  echo "Logs for green pod '$GREEN_POD_NAME':"
+  kubectl logs "$GREEN_POD_NAME" | head -n 50 # Show first 50 lines to quickly spot startup errors
+  echo "..."
+  echo "Full logs for $GREEN_POD_NAME can be retrieved with: kubectl logs $GREEN_POD_NAME"
+else
+  echo "Could not find a green pod to check logs."
+fi
+echo ""
+
+# --- Step 5: Switch traffic to the "Green" version ---
+echo "Switching traffic from Blue to Green by patching service selector..."
+kubectl patch service "$DJANGO_SERVICE_NAME" -p '{"spec":{"selector":{"app":"django-messaging-app-green"}}}' || { echo "Failed to patch service. Exiting."; exit 1; }
+echo "Traffic successfully switched to Green!"
+
+echo "Verifying service selector for '$DJANGO_SERVICE_NAME':"
+kubectl get service "$DJANGO_SERVICE_NAME" -o yaml | grep "app:"
+
+echo ""
+echo "--- Blue-Green Deployment Complete! ---"
+echo "The new 'green' version is now serving traffic."
+echo "You can verify by accessing http://django.local and looking for the 'green-v2.0' identifier (if your app exposes it)."
+echo ""
+echo "To revert to the 'blue' version (rollback), run:"
+echo "kubectl patch service $DJANGO_SERVICE_NAME -p '{\"spec\":{\"selector\":{\"app\":\"django-messaging-app-blue\"}}}'"
+echo ""
+echo "To clean up the old 'blue' deployment after verifying green is stable, run:"
+echo "kubectl delete deployment $BLUE_DEPLOYMENT_NAME"
+echo ""
+echo "To clean up the 'green' deployment for a fresh deploy or after rollback, run:"
+echo "kubectl delete deployment $GREEN_DEPLOYMENT_NAME"

@@ -1,0 +1,15 @@
+# This Service will be the stable entry point for your application.
+# Its selector will be updated by the kubctl-0x02 script to switch traffic.
+apiVersion: v1
+kind: Service
+metadata:
+  name: django-messaging-app-service # Keep the same service name as before for Ingress compatibility
+spec:
+  # Initially, this service will select pods with the 'app: django-messaging-app-blue' label
+  selector:
+    app: django-messaging-app-blue # <-- Initially targets the blue deployment
+  type: ClusterIP # Keeps the service internal, relies on Ingress for external exposure
+  ports:
+    - protocol: TCP
+      port: 80 # The port the service itself listens on (what Ingress will connect to)
+      targetPort: 8000 # The port on the container that the service forwards traffic to
