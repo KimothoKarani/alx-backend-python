@@ -1,0 +1,133 @@
+# This file defines Deployments and Services, referencing secrets from 'django-app-secrets'.
+
+# 1. MySQL Database Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql-deployment
+  labels:
+    app: mysql
+spec:
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:8.0 # Using the MySQL 8.0 image as per your Docker Desktop
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: django-app-secrets # Reference the separate secret file
+              key: mysql-root-password # Reference the root password key from the secret
+        ports:
+        - containerPort: 3306
+        # IMPORTANT: For production, add volumeMounts for data persistence!
+        # This current setup WILL LOSE DATA if the MySQL pod restarts.
+        # volumeMounts:
+        # - name: mysql-persistent-storage
+        #   mountPath: /var/lib/mysql
+      # volumes:
+      # - name: mysql-persistent-storage
+      #   persistentVolumeClaim:
+      #     claimName: mysql-pv-claim
+
+---
+
+# 2. MySQL Database Service (for internal cluster communication)
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-service
+  labels:
+    app: mysql
+spec:
+  selector:
+    app: mysql
+  ports:
+    - protocol: TCP
+      port: 3306
+      targetPort: 3306
+  type: ClusterIP
+
+---
+
+# 3. Django Messaging App Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: django-messaging-app-deployment
+  labels:
+    app: django-messaging-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: django-messaging-app
+  template:
+    metadata:
+      labels:
+        app: django-messaging-app
+    spec:
+      containers:
+      - name: django-messaging-app
+        image: messaging_app-web:latest # Your Docker image
+        ports:
+        - containerPort: 8000
+        env:
+        # Fetch SECRET_KEY from the secret
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: django-app-secrets # Reference the separate secret file
+              key: django-secret-key # Reference the secret key from the secret
+        - name: DB_HOST
+          value: mysql-service # The name of our MySQL Service
+        - name: DB_NAME
+          value: djangodb # From your provided env vars (not sensitive itself)
+        - name: DB_USER
+          value: django_user # From your provided env vars (not sensitive itself)
+        # Fetch DB_PASSWORD from the secret
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: django-app-secrets # Reference the separate secret file
+              key: mysql-app-password # Reference the app password key from the secret
+        # Optional: Add DEBUG variable
+        # - name: DEBUG
+        #   value: "True" # Set to "False" for production environments
+
+        # Health checks (highly recommended for production):
+        # livenessProbe:
+        #   httpGet:
+        #     path: /healthz # Replace with an actual health check endpoint in your Django app
+        #     port: 8000
+        #   initialDelaySeconds: 15 # Give some time for DB to be ready
+        #   periodSeconds: 10
+        # readinessProbe:
+        #   httpGet:
+        #     path: /readyz # Replace with an actual readiness check endpoint
+        #     port: 8000
+        #   initialDelaySeconds: 10 # Give some time for DB to be ready
+        #   periodSeconds: 10
+
+---
+
+# 4. Django Messaging App Service (for internal cluster access)
+apiVersion: v1
+kind: Service
+metadata:
+  name: django-messaging-app-service
+spec:
+  selector:
+    app: django-messaging-app
+  type: ClusterIP
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8000
