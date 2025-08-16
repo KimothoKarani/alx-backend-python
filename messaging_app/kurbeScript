@@ -1,0 +1,58 @@
+#!/bin/bash
+
+# Function to check if a command exists
+command_exists () {
+  command -v "$1" >/dev/null 2>&1
+}
+
+echo "--- Kubernetes Cluster Setup ---"
+
+# 1. Ensure Minikube is installed
+echo "Checking for Minikube installation..."
+if ! command_exists minikube; then
+  echo "Error: minikube is not installed."
+  echo "Please install Minikube. Instructions can be found at: https://minikube.sigs.k8s.io/docs/start/"
+  exit 1
+fi
+echo "Minikube is installed."
+
+# 2. Ensure kubectl is installed
+echo "Checking for kubectl installation..."
+if ! command_exists kubectl; then
+  echo "Error: kubectl is not installed."
+  echo "kubectl is the Kubernetes command-line tool. It often comes with Minikube, or can be installed separately."
+  echo "Please install kubectl. Instructions can be found at: https://kubernetes.io/docs/tasks/tools/install-kubectl/"
+  exit 1
+fi
+echo "kubectl is installed."
+
+# 3. Start a Kubernetes cluster on your machine
+echo "Starting Minikube Kubernetes cluster..."
+minikube start
+
+# Check the exit status of minikube start
+if [ $? -ne 0 ]; then
+  echo "Error: Failed to start Minikube cluster. Please check Minikube logs for details."
+  exit 1
+fi
+echo "Minikube cluster started successfully."
+
+# 4. Verify that the cluster is running using kubectl cluster-info
+echo "Verifying cluster status using kubectl cluster-info..."
+kubectl cluster-info
+if [ $? -ne 0 ]; then
+  echo "Error: Failed to retrieve cluster info. There might be an issue with the cluster or kubectl configuration."
+  exit 1
+fi
+echo "Cluster information retrieved."
+
+# 5. Retrieve the available pods
+echo "Retrieving available pods in the cluster..."
+kubectl get pods
+if [ $? -ne 0 ]; then
+  echo "Error: Failed to retrieve pods. Please check cluster connectivity and permissions."
+  exit 1
+fi
+echo "Successfully retrieved pods."
+
+echo "--- Kubernetes Cluster Setup Complete ---"
