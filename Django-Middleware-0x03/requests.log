@@ -119,3 +119,7 @@ RequestLoggingMiddleware initialized.
 2025-07-27 20:53:00.305214 - User: kimothokarani@gmail.com - Path: /admin/chats/user/add/
 2025-07-27 20:53:00.447632 - User: kimothokarani@gmail.com - Path: /admin/jsi18n/
 2025-07-27 20:53:09.231431 - User: kimothokarani@gmail.com - Path: /admin/chats/user/
+RolePermissionMiddleware initialized.
+OffensiveLanguageMiddleware (Rate Limiter) initialized. Limit: 5 messages per 60 seconds.
+RestrictAccessByTimeMiddleware initialized. Access allowed between 16:00 and 22:00.
+RequestLoggingMiddleware initialized.
