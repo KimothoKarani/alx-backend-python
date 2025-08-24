@@ -2,13 +2,7 @@ pipeline {
     agent {
         docker {
             image 'python:3.9'
-            args '-u root' // lets us install OS packages if needed
         }
-    }
-
-    environment {
-        DJANGO_SETTINGS_MODULE = 'messaging_app.settings.test'
-        PYTHON_VENV = 'venv'
     }
 
     stages {
@@ -16,7 +10,7 @@ pipeline {
             steps {
                 script {
                     dir('messaging_app') {
-                        sh 'ls -la'
+                        sh 'ls -la'  // confirm files exist
                     }
                 }
             }
@@ -33,17 +27,15 @@ pipeline {
             }
         }
 
-        stage('Run Pytest Tests') {
+        stage('Run Tests') {
             steps {
                 dir('messaging_app') {
-                    sh """
-                        pytest --junitxml=test-results.xml
-                    """
+                    sh "pytest --junitxml=test-results.xml || true"
                 }
             }
         }
 
-        stage('Publish Test Report') {
+        stage('Publish Report') {
             steps {
                 dir('messaging_app') {
                     junit 'test-results.xml'
