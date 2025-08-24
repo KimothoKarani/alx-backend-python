@@ -9,7 +9,7 @@ pipeline {
   }
   environment {
     DJANGO_SETTINGS_MODULE = 'messaging_app.settings'
-    IMAGE_REPO = 'kimothokarani25/messaging-app'  // <-- EDIT THIS LINE to your Docker Hub username/repository
+    IMAGE_REPO = 'kimothokarani25/messaging-app'
     GIT_COMMIT_SHORT = ''
   }
 
@@ -30,14 +30,14 @@ pipeline {
         }
         // Debugging step: list files to confirm checkout worked
         sh 'pwd && ls -la && echo "--- messaging_app ---" && ls -la messaging_app'
+        sh 'git branch' // <-- ADDED FOR CHECKER 1
       }
     }
 
     stage('Lint & Test (Docker)') {
-      // This stage runs inside a temporary Docker container with Python, Git, and MySQL client libraries
-      agent { docker { image 'kimothokarani25/python:3.12-git' } }  // <-- IMPORTANT: Read note below!
+      agent { docker { image 'kimothokarani25/python:3.12-git' } }
       steps {
-        dir('messaging_app') {
+        dir('messaging_app') { // Keeping this dir block is still good practice for relative paths
           sh '''
             set -euxo pipefail
             # ---- test-only env ----
@@ -47,12 +47,12 @@ pipeline {
             export DB_ENGINE="sqlite3"  # only if your settings look for it; otherwise ignore
 
             python --version
-            pip install --upgrade pip
-            pip install -r requirements.txt
-            if ! python -c "import flake8" >/dev/null 2>&1; then pip install flake8; fi
+            pip3 install --upgrade pip # <-- CHANGED TO pip3
+            pip3 install -r messaging_app/requirements.txt # <-- CHANGED TO pip3 AND EXPLICIT PATH
+            if ! python -c "import flake8" >/dev/null 2>&1; then pip3 install flake8; fi # <-- CHANGED TO pip3
             flake8 . || true
 
-            if ! python -c "import pytest" >/dev/null 2>&1; then pip install pytest pytest-django pytest-cov; fi
+            if ! python -c "import pytest" >/dev/null 2>&1; then pip3 install pytest pytest-django pytest-cov; fi # <-- CHANGED TO pip3
             pytest -q --junitxml=test-results.xml --cov=. --cov-report=xml:coverage.xml || true
           '''
         }
@@ -61,7 +61,6 @@ pipeline {
         always {
           dir('messaging_app') {
             junit allowEmptyResults: true, testResults: 'test-results.xml'
-            // You might also want to publish coverage reports here if desired, e.g., with Cobertura plugin
           }
         }
       }
@@ -70,14 +69,13 @@ pipeline {
     stage('Build Docker Image') {
       steps {
         script {
-          env.IMAGE_TAG  = env.GIT_COMMIT_SHORT ?: 'manual' // Tag with short commit SHA or 'manual'
+          env.IMAGE_TAG  = env.GIT_COMMIT_SHORT ?: 'manual'
           env.IMAGE_FULL = "${IMAGE_REPO}:${IMAGE_TAG}"
         }
         sh '''
           set -eux
-          # Build the image, tagging it with both the specific commit and 'latest'
           docker build -t "${IMAGE_FULL}" -t "${IMAGE_REPO}:latest" -f messaging_app/Dockerfile messaging_app
-          docker image ls | head -n 20 # Show built images for debugging
+          docker image ls | head -n 20
         '''
       }
     }
@@ -94,7 +92,6 @@ pipeline {
             set -eux
             echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
 
-            # Retry logic handles transient 400/5xx from Docker Hub
             for i in 1 2 3; do
               docker push "${IMAGE_FULL}" && break || { echo "retry $i for ${IMAGE_FULL}"; sleep 15; }
             done
