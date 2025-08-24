@@ -48,7 +48,7 @@ pipeline {
 
             python --version
             pip3 install --upgrade pip # <-- CHANGED TO pip3
-            pip3 install -r messaging_app/requirements.txt # <-- CHANGED TO pip3 AND EXPLICIT PATH
+            pip3 install -r requirements.txt # <-- CHANGED TO pip3 AND EXPLICIT PATH
             if ! python -c "import flake8" >/dev/null 2>&1; then pip3 install flake8; fi # <-- CHANGED TO pip3
             flake8 . || true
 
