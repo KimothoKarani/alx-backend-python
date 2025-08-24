@@ -17,18 +17,25 @@ from decouple import config
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# ---- Helpers ---------------------------------------------------------------
+def env_first(*names, default=None):
+    """Return first non-empty env var in names, else default."""
+    for n in names:
+        v = os.getenv(n)
+        if v not in (None, ""):
+            return v
+    return default
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = config('SECRET_KEY')
+# ---- Core settings ---------------------------------------------------------
+# Never crash in CI if SECRET_KEY is missing.
+SECRET_KEY = config('SECRET_KEY', default=os.getenv('DJANGO_SECRET_KEY', 'insecure-ci-key'))
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# Default DEBUG to False; enable with DEBUG=1 in dev if you want.
+DEBUG = config('DEBUG', cast=bool, default=False)
 
-ALLOWED_HOSTS = []
-
+# Accept everything in CI; tighten in prod (e.g., set ALLOWED_HOSTS="example.com")
+ALLOWED_HOSTS = [h.strip() for h in config('ALLOWED_HOSTS', default='*').split(',')]
 
 # Application definition
 
@@ -92,19 +99,34 @@ WSGI_APPLICATION = 'messaging_app.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': config('DATABASE_NAME'),
-        'USER': config('DATABASE_USER'),
-        'PASSWORD': config('DATABASE_PASSWORD'),
-        'HOST': config('DATABASE_HOST'), # This will be 'db'
-        'PORT': config('DATABASE_PORT', default='3306'), # Add a default in case .env is missing
-        'OPTIONS': {
-            'init_command': "SET default_storage_engine=InnoDB",
+# ---- Database --------------------------------------------------------------
+# Support DATABASE_*, DB_*, and MYSQL_* env names. Fallback to SQLite in CI.
+db_engine = env_first('DATABASE_ENGINE', 'DB_ENGINE', default='sqlite').lower()
+
+if db_engine in ('mysql', 'mysql+mysqldb'):
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': env_first('DATABASE_NAME', 'DB_NAME', 'MYSQL_DATABASE', default='gha_db'),
+            'USER': env_first('DATABASE_USER', 'DB_USER', 'MYSQL_USER', default='gha_user'),
+            'PASSWORD': env_first('DATABASE_PASSWORD', 'DB_PASSWORD', 'MYSQL_PASSWORD', default='gha_pass'),
+            'HOST': env_first('DATABASE_HOST', 'DB_HOST', 'MYSQL_HOST', default='127.0.0.1'),
+            'PORT': env_first('DATABASE_PORT', 'DB_PORT', 'MYSQL_PORT', default='3306'),
+            'OPTIONS': {
+                'init_command': "SET default_storage_engine=InnoDB",
+            },
+            # Optional: separate test DB name if you want
+            # 'TEST': {'NAME': env_first('TEST_DATABASE_NAME', 'TEST_DB_NAME', default='gha_db_test')},
         }
     }
-}
+else:
+    # Zero-config local/CI fallback
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 # Add this section
 AUTHENTICATION_BACKENDS = [
     'chats.auth.EmailBackend', # Your custom backend
