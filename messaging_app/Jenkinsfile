@@ -14,9 +14,6 @@ pipeline {
     stages {
         stage('Checkout Source Code') {
             steps {
-                git credentialsId: 'github-credentials-id',
-                    url: 'https://github.com/KimothoKarani/alx-backend-python.git',
-                    branch: 'main'
                 script {
                     dir('messaging_app') {
                         sh 'ls -la'
