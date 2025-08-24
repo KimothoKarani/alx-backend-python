@@ -1,0 +1,58 @@
+pipeline {
+    agent any
+
+    environment {
+        PYTHON_VERSION = '3.9'
+        PYTHON_VENV = 'venv'
+        DJANGO_SETTINGS_MODULE = 'messaging_app.settings.test'
+    }
+
+    stages {
+        stage('Checkout Source Code') {
+            steps {
+                git credentialsId: 'github-credentials-id',
+                    url: 'https://github.com/KimothoKarani/alx-backend-python.git',
+                    branch: 'main'
+                script {
+                    dir('messaging_app') {
+                        sh 'ls -la' // Verify we are in the correct directory
+                    }
+                }
+            }
+        }
+
+        stage('Prepare Environment & Install Dependencies') {
+            steps {
+                script {
+                    dir('messaging_app') {
+                        sh """
+                            python${env.PYTHON_VERSION} -m venv ${env.PYTHON_VENV}
+                            source ${env.PYTHON_VENV}/bin/activate
+                            pip install --upgrade pip
+                            pip install -r requirements.txt
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Run Pytest Tests') {
+            steps {
+                dir('messaging_app') {
+                    sh """
+                        source ${env.PYTHON_VENV}/bin/activate
+                        pytest --junitxml=test-results.xml
+                    """
+                }
+            }
+        }
+
+        stage('Publish Test Report') {
+            steps {
+                dir('messaging_app') {
+                    junit 'test-results.xml'
+                }
+            }
+        }
+    }
+}
