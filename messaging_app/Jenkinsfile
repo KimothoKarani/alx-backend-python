@@ -40,15 +40,20 @@ pipeline {
         dir('messaging_app') {
           sh '''
             set -euxo pipefail
+            # ---- test-only env ----
+            export SECRET_KEY="ci-secret-key"
+            export DEBUG="0"
+            # If your settings read DB creds from env, you can make tests use sqlite:
+            export DB_ENGINE="sqlite3"  # only if your settings look for it; otherwise ignore
+
             python --version
             pip install --upgrade pip
             pip install -r requirements.txt
-            # Install flake8 if not already present in the image
             if ! python -c "import flake8" >/dev/null 2>&1; then pip install flake8; fi
-            flake8 . || true # '|| true' allows the build to continue even if linting errors are found
-            # Install pytest if not already present in the image
-            if ! python -c "import pytest" >/dev/null 2>&1; then pip install pytest pytest-cov pytest-django; fi
-            pytest -q --junitxml=test-results.xml --cov=. --cov-report=xml:coverage.xml || true # '|| true' allows the build to continue even if tests fail
+            flake8 . || true
+
+            if ! python -c "import pytest" >/dev/null 2>&1; then pip install pytest pytest-django pytest-cov; fi
+            pytest -q --junitxml=test-results.xml --cov=. --cov-report=xml:coverage.xml || true
           '''
         }
       }
