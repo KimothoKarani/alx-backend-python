@@ -78,19 +78,26 @@ pipeline {
     }
 
     stage('Push Docker Image') {
-      when { expression { return params.DOCKER_PUSH } } // Only push if DOCKER_PUSH parameter is true
+      when { expression { return params.DOCKER_PUSH } }
       steps {
         withCredentials([usernamePassword(
-          credentialsId: 'dockerhub-creds-id', // ID from Jenkins Credentials
+          credentialsId: 'dockerhub-creds-id',
           usernameVariable: 'DOCKER_USER',
           passwordVariable: 'DOCKER_PASS'
         )]) {
           sh '''
             set -eux
             echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-            docker push "${IMAGE_FULL}"
-            docker push "${IMAGE_REPO}:latest"
-            docker logout # Always log out after pushing
+
+            # Retry logic handles transient 400/5xx from Docker Hub
+            for i in 1 2 3; do
+              docker push "${IMAGE_FULL}" && break || { echo "retry $i for ${IMAGE_FULL}"; sleep 15; }
+            done
+            for i in 1 2 3; do
+              docker push "${IMAGE_REPO}:latest" && break || { echo "retry $i for latest"; sleep 15; }
+            done
+
+            docker logout
           '''
         }
       }
