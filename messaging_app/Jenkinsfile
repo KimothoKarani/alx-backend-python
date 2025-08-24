@@ -1,8 +1,28 @@
 pipeline {
   agent any
-  options { skipDefaultCheckout(true) }  // prevent implicit SCM checkout
+  options {
+    // we do the checkout ourselves; prevents hidden/implicit SCM checkout
+    skipDefaultCheckout(true)
+    timestamps()
+    ansiColor('xterm')
+  }
+
+  parameters {
+    booleanParam(name: 'DOCKER_PUSH', defaultValue: false, description: 'If true, build & push Docker image')
+    string(name: 'DOCKER_IMAGE', defaultValue: 'your-dockerhub-user/messaging_app:latest', description: 'Image tag to push when DOCKER_PUSH = true')
+  }
+
+  environment {
+    // Django settings module — change to messaging_app.settings.test if you have it
+    DJANGO_SETTINGS_MODULE = 'messaging_app.settings'
+    // Speed up pip a bit by caching inside workspace
+    PIP_CACHE_DIR = "${WORKSPACE}/.pip-cache"
+    // helpful for tagging images
+    GIT_COMMIT_SHORT = ''
+  }
 
   stages {
+
     stage('Prep (verify git)') {
       steps {
         sh 'which git && git --version'
@@ -11,7 +31,7 @@ pipeline {
 
     stage('Checkout Source Code') {
       steps {
-        deleteDir()  // ensure clean workspace
+        deleteDir()  // clean workspace
         checkout([
           $class: 'GitSCM',
           branches: [[name: '*/main']],
@@ -19,35 +39,151 @@ pipeline {
             url: 'https://github.com/KimothoKarani/alx-backend-python.git',
             credentialsId: 'github-credentials-id'
           ]],
-          extensions: []   // you can add shallow clone later if you want
+          extensions: [
+            [$class: 'CloneOption', noTags: false, shallow: true, depth: 5, reference: '']
+          ]
         ])
-        sh 'ls -la'
+        script {
+          // capture short SHA for later tagging
+          env.GIT_COMMIT_SHORT = sh(returnStdout: true, script: "git rev-parse --short HEAD").trim()
+        }
+        sh '''
+          echo "Workspace:"; pwd
+          echo "Repo root:"
+          ls -la
+          echo "---- messaging_app ----"
+          ls -la messaging_app || true
+        '''
       }
     }
 
-    stage('Build & Test in Docker') {
+    stage('Lint & Test (Docker)') {
       agent {
-        docker {
-          image 'kimothokarani25/python:3.9-git'
-        }
+        // your custom image with Python + Git preinstalled
+        docker { image 'kimothokarani25/python:3.9-git' }
       }
       steps {
         dir('messaging_app') {
           sh '''
+            set -euxo pipefail
+
+            echo "Python version:"
+            python --version
+
+            echo "Upgrading pip and installing deps..."
             pip install --upgrade pip
-            pip install -r requirements.txt
-            pytest --junitxml=test-results.xml || true
+            # Install project deps
+            if [ -f requirements.txt ]; then
+              pip install -r requirements.txt
+            else
+              echo "WARNING: requirements.txt missing. Installing minimal test deps."
+              pip install pytest pytest-cov flake8
+            fi
+
+            echo "Running flake8 (will not fail build, just report)..."
+            # If flake8 isn't in requirements, ensure it's installed:
+            python - <<'PY'
+import subprocess, sys
+def have(p):
+    import importlib
+    try: importlib.import_module(p)
+    except ImportError: sys.exit(1)
+    sys.exit(0)
+PY
+            if ! python -c "import flake8" >/dev/null 2>&1; then pip install flake8; fi
+            flake8 . || true
+
+            echo "Running tests with coverage..."
+            # Ensure pytest/pytest-cov present
+            python - <<'PY'
+import subprocess, sys
+def need(mods):
+    import importlib
+    missing = False
+    for m in mods:
+        try: importlib.import_module(m)
+        except ImportError:
+            missing = True
+    sys.exit(1 if missing else 0)
+PY
+            if python - <<'PY'
+import importlib, sys
+miss = 0
+for m in ("pytest","pytest_cov"):
+    try: importlib.import_module(m.replace("_","."))
+    except ImportError: miss += 1
+sys.exit(1 if miss else 0)
+PY
+            then
+              pip install pytest pytest-cov
+            fi
+
+            # Generate JUnit + coverage.xml if pytest-cov is available
+            if python -c "import pytest_cov" >/dev/null 2>&1; then
+              pytest -q --junitxml=test-results.xml --cov=. --cov-report=xml
+            else
+              pytest -q --junitxml=test-results.xml || true
+            fi
           '''
+        }
+      }
+      post {
+        always {
+          dir('messaging_app') {
+            // publish tests even if they failed
+            junit allowEmptyResults: true, testResults: 'test-results.xml'
+            // archive coverage if present
+            archiveArtifacts artifacts: 'coverage.xml', onlyIfSuccessful: false, allowEmptyArchive: true
+          }
         }
       }
     }
 
-    stage('Publish Report') {
+    stage('Build Docker image') {
+      when {
+        expression { fileExists('messaging_app/Dockerfile') } // only if you have a Dockerfile there
+      }
       steps {
-        dir('messaging_app') {
-          junit 'test-results.xml'
+        sh '''
+          set -eux
+          echo "Building local image..."
+          docker build -t local/messaging_app:${GIT_COMMIT_SHORT} -f messaging_app/Dockerfile messaging_app
+          docker images | head -n 20
+        '''
+      }
+    }
+
+    stage('Push Docker image') {
+      when { expression { return params.DOCKER_PUSH } }
+      steps {
+        withCredentials([usernamePassword(
+          credentialsId: 'dockerhub-creds-id',
+          usernameVariable: 'DOCKER_USER',
+          passwordVariable: 'DOCKER_PASS'
+        )]) {
+          sh '''
+            set -eux
+            echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+
+            # Tag and push
+            docker tag local/messaging_app:${GIT_COMMIT_SHORT} ${DOCKER_IMAGE}
+            docker push ${DOCKER_IMAGE}
+
+            # Optionally also push a commit-tagged image
+            if [ "${DOCKER_IMAGE#*:}" = "latest" ]; then
+              COMMIT_TAG="${DOCKER_IMAGE%:*}:${GIT_COMMIT_SHORT}"
+              docker tag local/messaging_app:${GIT_COMMIT_SHORT} "$COMMIT_TAG"
+              docker push "$COMMIT_TAG"
+            fi
+          '''
         }
       }
+    }
+  }
+
+  post {
+    always {
+      echo "Build finished for ${env.GIT_COMMIT_SHORT}"
     }
   }
 }
