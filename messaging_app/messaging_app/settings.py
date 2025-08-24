@@ -49,11 +49,13 @@ INSTALLED_APPS = [
     'rest_framework',
     'chats',
     'rest_framework_simplejwt',
-    'corsheaders',  # If your frontend is on a different domain/port
-    'django_filters',  # <-- ADD THIS LINE
-    'django_extensions',
-
+    'corsheaders',
+    'django_filters',
 ]
+
+# Toggle django-extensions via env (default: ON for dev)
+if config('ENABLE_DJANGO_EXTENSIONS', default=True, cast=bool):
+    INSTALLED_APPS.append('django_extensions')
 
 # Configure CORS Headers (CRITICAL if your frontend is separate)
 # For development, you might allow all origins:
