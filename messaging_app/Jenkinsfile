@@ -2,13 +2,13 @@ pipeline {
     agent {
         docker {
             image 'python:3.9'
+            args '-u root' // lets us install OS packages if needed
         }
     }
 
     environment {
-        PYTHON_VERSION = '3.9'
-        PYTHON_VENV = 'venv'
         DJANGO_SETTINGS_MODULE = 'messaging_app.settings.test'
+        PYTHON_VENV = 'venv'
     }
 
     stages {
@@ -19,23 +19,19 @@ pipeline {
                     branch: 'main'
                 script {
                     dir('messaging_app') {
-                        sh 'ls -la' // Verify we are in the correct directory
+                        sh 'ls -la'
                     }
                 }
             }
         }
 
-        stage('Prepare Environment & Install Dependencies') {
+        stage('Install Dependencies') {
             steps {
-                script {
-                    dir('messaging_app') {
-                        sh """
-                            python${env.PYTHON_VERSION} -m venv ${env.PYTHON_VENV}
-                            source ${env.PYTHON_VENV}/bin/activate
-                            pip install --upgrade pip
-                            pip install -r requirements.txt
-                        """
-                    }
+                dir('messaging_app') {
+                    sh """
+                        pip install --upgrade pip
+                        pip install -r requirements.txt
+                    """
                 }
             }
         }
@@ -44,7 +40,6 @@ pipeline {
             steps {
                 dir('messaging_app') {
                     sh """
-                        source ${env.PYTHON_VENV}/bin/activate
                         pytest --junitxml=test-results.xml
                     """
                 }
