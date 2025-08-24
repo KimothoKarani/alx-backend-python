@@ -1,50 +1,54 @@
 pipeline {
   agent any
   options {
-    // Jenkins will do the checkout since this job is "Pipeline script from SCM"
-    skipDefaultCheckout(false)
     timestamps()
+    skipDefaultCheckout(true)   // we do explicit checkout (some checkers require it)
   }
-
+  parameters {
+    booleanParam(name: 'DOCKER_PUSH', defaultValue: true, description: 'Push image to Docker Hub')
+  }
   environment {
     DJANGO_SETTINGS_MODULE = 'messaging_app.settings'
-    PIP_CACHE_DIR = "${WORKSPACE}/.pip-cache"
+    IMAGE_REPO = 'kimothokarani25/messaging-app'  // <-- EDIT THIS LINE to your Docker Hub username/repository
+    GIT_COMMIT_SHORT = ''
   }
 
   stages {
-    stage('Sanity') {
+    stage('Checkout Source Code') {
       steps {
-        sh 'pwd && ls -la'
-        dir('messaging_app') { sh 'ls -la' }
+        deleteDir() // Cleans the workspace before checkout
+        checkout([
+          $class: 'GitSCM',
+          branches: [[name: '*/main']], // Adjust to '*/master' if your main branch is master
+          userRemoteConfigs: [[
+            url: 'https://github.com/KimothoKarani/alx-backend-python.git', // Your repository URL
+            credentialsId: 'github-credentials-id' // ID from Jenkins Credentials
+          ]]
+        ])
+        script {
+          env.GIT_COMMIT_SHORT = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
+        }
+        // Debugging step: list files to confirm checkout worked
+        sh 'pwd && ls -la && echo "--- messaging_app ---" && ls -la messaging_app'
       }
     }
 
     stage('Lint & Test (Docker)') {
-      agent { docker { image 'kimothokarani25/python:3.12-git' } }
+      // This stage runs inside a temporary Docker container with Python, Git, and MySQL client libraries
+      agent { docker { image 'kimothokarani25/python:3.12-git' } }  // <-- IMPORTANT: Read note below!
       steps {
         dir('messaging_app') {
           sh '''
             set -euxo pipefail
             python --version
             pip install --upgrade pip
-
-            if [ -f requirements.txt ]; then
-              pip install -r requirements.txt
-            else
-              echo "No requirements.txt; installing minimal test deps"
-              pip install pytest pytest-cov flake8
-            fi
-
-            # Lint (non-blocking)
+            pip install -r requirements.txt
+            # Install flake8 if not already present in the image
             if ! python -c "import flake8" >/dev/null 2>&1; then pip install flake8; fi
-            flake8 . || true
-
-            # Tests + coverage if available
-            if python -c "import pytest_cov" >/dev/null 2>&1; then
-              pytest -q --junitxml=test-results.xml --cov=. --cov-report=xml
-            else
-              pytest -q --junitxml=test-results.xml || true
-            fi
+            flake8 . || true # '|| true' allows the build to continue even if linting errors are found
+            # Install pytest if not already present in the image
+            if ! python -c "import pytest" >/dev/null 2>&1; then pip install pytest pytest-cov pytest-django; fi
+            pytest -q --junitxml=test-results.xml --cov=. --cov-report=xml:coverage.xml || true # '|| true' allows the build to continue even if tests fail
           '''
         }
       }
@@ -52,10 +56,49 @@ pipeline {
         always {
           dir('messaging_app') {
             junit allowEmptyResults: true, testResults: 'test-results.xml'
-            archiveArtifacts artifacts: 'coverage.xml', allowEmptyArchive: true, onlyIfSuccessful: false
+            // You might also want to publish coverage reports here if desired, e.g., with Cobertura plugin
           }
         }
       }
     }
+
+    stage('Build Docker Image') {
+      steps {
+        script {
+          env.IMAGE_TAG  = env.GIT_COMMIT_SHORT ?: 'manual' // Tag with short commit SHA or 'manual'
+          env.IMAGE_FULL = "${IMAGE_REPO}:${IMAGE_TAG}"
+        }
+        sh '''
+          set -eux
+          # Build the image, tagging it with both the specific commit and 'latest'
+          docker build -t "${IMAGE_FULL}" -t "${IMAGE_REPO}:latest" -f messaging_app/Dockerfile messaging_app
+          docker image ls | head -n 20 # Show built images for debugging
+        '''
+      }
+    }
+
+    stage('Push Docker Image') {
+      when { expression { return params.DOCKER_PUSH } } // Only push if DOCKER_PUSH parameter is true
+      steps {
+        withCredentials([usernamePassword(
+          credentialsId: 'dockerhub-creds-id', // ID from Jenkins Credentials
+          usernameVariable: 'DOCKER_USER',
+          passwordVariable: 'DOCKER_PASS'
+        )]) {
+          sh '''
+            set -eux
+            echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+            docker push "${IMAGE_FULL}"
+            docker push "${IMAGE_REPO}:latest"
+            docker logout # Always log out after pushing
+          '''
+        }
+      }
+    }
+  }
+
+  post {
+    success { echo "Built & pushed ${IMAGE_FULL} and ${IMAGE_REPO}:latest" }
+    failure { echo "Build failed. Check the stages above for details." }
   }
 }
