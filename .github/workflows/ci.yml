@@ -2,66 +2,62 @@ name: CI (Django + MySQL)
 
 on:
   push:
-    branches: [ "*" ] # Triggers on any branch push
+    branches: [ "*" ]
   pull_request:
-    branches: [ "*" ] # Triggers on any branch pull request
+    branches: [ "*" ]
 
 concurrency:
-  group: ci-${{ github.ref }} # Ensures only one CI workflow runs per branch/PR
-  cancel-in-progress: true    # Cancels older runs if a new one is triggered
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
     name: Run tests
-    runs-on: ubuntu-latest # Uses a fresh Ubuntu environment for each run
+    runs-on: ubuntu-latest
 
     services:
       mysql:
-        image: mysql:8.0 # Specifies the MySQL Docker image to use
+        image: mysql:8.0
         ports:
-          - 3306:3306 # Maps MySQL port to the host
-        env: # These environment variables initialize the MySQL container
+          - 3306:3306
+        env:
           MYSQL_ROOT_PASSWORD: root
           MYSQL_DATABASE: gha_db
           MYSQL_USER: gha_user
           MYSQL_PASSWORD: gha_pass
-        options: >- # Health check to ensure MySQL is ready before tests start
+        options: >-
           --health-cmd="mysqladmin ping -h 127.0.0.1 -proot || exit 1"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=10
 
     env:
-      # Django / tests environment variables
-      DJANGO_SETTINGS_MODULE: messaging_app.settings # Important: Path to your Django settings file
-      SECRET_KEY: ci-secret-key # Placeholder for tests
-      DEBUG: "0" # Set to 0 for CI environment
+      DJANGO_SETTINGS_MODULE: messaging_app.settings
+      SECRET_KEY: ci-secret-key
+      DEBUG: "0"
 
-      # App DB environment variables (adapt to what your settings.py expects)
       DB_ENGINE: mysql
       DB_NAME: gha_db
       DB_USER: gha_user
       DB_PASSWORD: gha_pass
       DB_HOST: 127.0.0.1
       DB_PORT: "3306"
-      # If your settings.py uses DATABASE_URL (e.g., with django-environ), this helps
       DATABASE_URL: mysql://gha_user:gha_pass@127.0.0.1:3306/gha_db
 
-      # Make pip quieter & faster
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
       PIP_NO_COLOR: "1"
 
     steps:
       - name: Check out code
-        uses: actions/checkout@v4 # Action to clone your repository
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v5 # Action to set up Python environment
+        uses: actions/setup-python@v5
         with:
-          python-version: "3.12" # Specifies Python version
+          python-version: "3.12"
 
       - name: Cache pip
-        uses: actions/cache@v4 # Caches pip dependencies to speed up subsequent runs
+        uses: actions/cache@v4
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
@@ -71,19 +67,22 @@ jobs:
       - name: Install system packages for mysqlclient build
         run: |
           sudo apt-get update
-          # These packages are crucial for building Python's 'mysqlclient' binding
           sudo apt-get install -y default-libmysqlclient-dev build-essential pkg-config mysql-client
 
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r messaging_app/requirements.txt # Installs your app's dependencies
-          # Ensure test dependencies are installed
-          pip install pytest pytest-django pytest-cov
+          pip install -r messaging_app/requirements.txt
+          pip install pytest pytest-django pytest-cov flake8 # <-- ADDED flake8 HERE
           
+      - name: Run Flake8 for linting # <-- NEW STEP ADDED HERE
+        working-directory: messaging_app
+        run: |
+          # Run flake8. By default, it will fail the build if any errors are found.
+          flake8 .
+
       - name: Wait for MySQL to be ready
         run: |
-          # Loop to wait for MySQL service to be fully up and responsive
           for i in {1..30}; do
             mysqladmin ping -h 127.0.0.1 -P 3306 -uroot -proot --silent && break
             echo "Waiting for MySQL ($i/30)..."
@@ -92,29 +91,29 @@ jobs:
 
       - name: Show DBs (sanity)
         run: |
-          # Connects to MySQL and shows databases as a sanity check
           mysql -h 127.0.0.1 -P 3306 -uroot -proot -e "SHOW DATABASES;"
 
       - name: Run migrations
-        working-directory: messaging_app # Runs this command from the messaging_app directory
+        working-directory: messaging_app
         run: |
-          python manage.py migrate --noinput # Applies database migrations
+          python manage.py migrate --noinput
 
       - name: Run tests (pytest)
-        working-directory: messaging_app # Runs this command from the messaging_app directory
+        working-directory: messaging_app
         run: |
-          pytest -q --junitxml=test-results.xml --cov=. --cov-report=xml:coverage.xml # Executes tests and generates reports
+          # pytest-cov generates coverage.xml
+          pytest -q --junitxml=test-results.xml --cov=. --cov-report=xml:coverage.xml
 
       - name: Upload test report
-        if: always() # Uploads artifact even if previous steps fail
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: junit-report
-          path: messaging_app/test-results.xml # Path to the generated JUnit XML report
+          path: messaging_app/test-results.xml
 
       - name: Upload coverage report
-        if: always() # Uploads artifact even if previous steps fail
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: coverage-xml
-          path: messaging_app/coverage.xml # Path to the generated coverage XML report
+          path: messaging_app/coverage.xml # This was already correctly configured
