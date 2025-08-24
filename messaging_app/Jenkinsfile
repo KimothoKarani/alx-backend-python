@@ -20,7 +20,7 @@ pipeline {
     }
 
     stage('Lint & Test (Docker)') {
-      agent { docker { image 'kimothokarani25/python:3.9-git' } }
+      agent { docker { image 'kimothokarani25/python:3.12-git' } }
       steps {
         dir('messaging_app') {
           sh '''
