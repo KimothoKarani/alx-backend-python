@@ -1,46 +1,53 @@
 pipeline {
-    agent {
+  agent any
+  options { skipDefaultCheckout(true) }  // prevent implicit SCM checkout
+
+  stages {
+    stage('Prep (verify git)') {
+      steps {
+        sh 'which git && git --version'
+      }
+    }
+
+    stage('Checkout Source Code') {
+      steps {
+        deleteDir()  // ensure clean workspace
+        checkout([
+          $class: 'GitSCM',
+          branches: [[name: '*/main']],
+          userRemoteConfigs: [[
+            url: 'https://github.com/KimothoKarani/alx-backend-python.git',
+            credentialsId: 'github-credentials-id'
+          ]],
+          extensions: []   // you can add shallow clone later if you want
+        ])
+        sh 'ls -la'
+      }
+    }
+
+    stage('Build & Test in Docker') {
+      agent {
         docker {
-            image 'python:3.9'
+          image 'kimothokarani25/python:3.9-git'
         }
+      }
+      steps {
+        dir('messaging_app') {
+          sh '''
+            pip install --upgrade pip
+            pip install -r requirements.txt
+            pytest --junitxml=test-results.xml || true
+          '''
+        }
+      }
     }
 
-    stages {
-        stage('Checkout Source Code') {
-            steps {
-                script {
-                    dir('messaging_app') {
-                        sh 'ls -la'  // confirm files exist
-                    }
-                }
-            }
+    stage('Publish Report') {
+      steps {
+        dir('messaging_app') {
+          junit 'test-results.xml'
         }
-
-        stage('Install Dependencies') {
-            steps {
-                dir('messaging_app') {
-                    sh """
-                        pip install --upgrade pip
-                        pip install -r requirements.txt
-                    """
-                }
-            }
-        }
-
-        stage('Run Tests') {
-            steps {
-                dir('messaging_app') {
-                    sh "pytest --junitxml=test-results.xml || true"
-                }
-            }
-        }
-
-        stage('Publish Report') {
-            steps {
-                dir('messaging_app') {
-                    junit 'test-results.xml'
-                }
-            }
-        }
+      }
     }
+  }
 }
